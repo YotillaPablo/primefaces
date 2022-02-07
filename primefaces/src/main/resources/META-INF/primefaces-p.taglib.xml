@@ -3738,7 +3738,7 @@
         </attribute>
         <attribute>
             <description>
-                <![CDATA[Theme of the captcha. Default is light.]]>
+                <![CDATA[Theme of the captcha either 'light', 'dark', or 'auto'. Default is auto.]]>
             </description>
             <name>theme</name>
             <required>false</required>
@@ -6895,7 +6895,7 @@
         </attribute>
         <attribute>
             <description>
-                <![CDATA[In responsive mode, dialog adjusts itself based on screen width.]]>
+                <![CDATA[In responsive mode the dialog adjusts itself based on screen width, browser resizing, and scrolling of the document.]]>
             </description>
             <name>responsive</name>
             <required>false</required>
@@ -26239,6 +26239,14 @@
             <required>false</required>
             <type>java.lang.String</type>
         </attribute>
+        <attribute>
+            <description>
+                <![CDATA[Allows the user to increment or decrement the element value with the mouse wheel, default is true.]]>
+            </description>
+            <name>modifyValueOnWheel</name>
+            <required>false</required>
+            <type>boolean</type>
+        </attribute>
     </tag>
     <tag>
         <description>
@@ -29558,6 +29566,14 @@
             <name>filterMode</name>
             <required>false</required>
             <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <description>
+                <![CDATA[Custom implementation to filter TreeNodes against a constraint.]]>
+            </description>
+            <name>filterFunction</name>
+            <required>false</required>
+            <type>javax.el.MethodExpression</type>
         </attribute>
     </tag>
     <tag>
