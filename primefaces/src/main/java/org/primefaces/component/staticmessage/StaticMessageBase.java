@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,7 @@ public abstract class StaticMessageBase extends UIComponentBase {
     public enum PropertyKeys {
         summary,
         detail,
+        display,
         escape,
         style,
         styleClass,
@@ -79,6 +80,14 @@ public abstract class StaticMessageBase extends UIComponentBase {
 
     public void setDetail(String detail) {
         getStateHelper().put(PropertyKeys.detail, detail);
+    }
+
+    public String getDisplay() {
+        return (String) getStateHelper().eval(PropertyKeys.display, "both");
+    }
+
+    public void setDisplay(String display) {
+        getStateHelper().put(PropertyKeys.display, display);
     }
 
     public String getStyle() {

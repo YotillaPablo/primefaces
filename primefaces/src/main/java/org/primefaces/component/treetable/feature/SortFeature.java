@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,47 +23,29 @@
  */
 package org.primefaces.component.treetable.feature;
 
-import org.primefaces.PrimeFaces;
-import org.primefaces.event.data.PostSortEvent;
-import org.primefaces.model.*;
-
 import javax.faces.FacesException;
 import javax.faces.context.FacesContext;
 import java.io.IOException;
 import java.text.Collator;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import org.primefaces.PrimeFaces;
 import org.primefaces.component.treetable.TreeTable;
 import org.primefaces.component.treetable.TreeTableRenderer;
 import org.primefaces.component.treetable.TreeTableState;
+import org.primefaces.event.data.PostSortEvent;
+import org.primefaces.model.SortMeta;
+import org.primefaces.model.SortOrder;
+import org.primefaces.model.TreeNode;
+import org.primefaces.model.TreeNodeList;
 import org.primefaces.util.ComponentUtils;
 
 public class SortFeature implements TreeTableFeature {
-
-    private static final SortFeature INSTANCE = new SortFeature();
-
-    private SortFeature() {
-    }
-
-    public static SortFeature getInstance() {
-        return INSTANCE;
-    }
-
-    private boolean isSortRequest(FacesContext context, TreeTable table) {
-        return context.getExternalContext().getRequestParameterMap().containsKey(table.getClientId(context) + "_sorting");
-    }
-
-    @Override
-    public boolean shouldDecode(FacesContext context, TreeTable table) {
-        return isSortRequest(context, table);
-    }
-
-    @Override
-    public boolean shouldEncode(FacesContext context, TreeTable table) {
-        return isSortRequest(context, table);
-    }
 
     @Override
     public void decode(FacesContext context, TreeTable table) {
@@ -193,4 +175,19 @@ public class SortFeature implements TreeTableFeature {
             }
         }
     }
+
+    @Override
+    public boolean shouldDecode(FacesContext context, TreeTable table) {
+        return isSortRequest(context, table);
+    }
+
+    @Override
+    public boolean shouldEncode(FacesContext context, TreeTable table) {
+        return isSortRequest(context, table);
+    }
+
+    private boolean isSortRequest(FacesContext context, TreeTable table) {
+        return context.getExternalContext().getRequestParameterMap().containsKey(table.getClientId(context) + "_sorting");
+    }
+
 }

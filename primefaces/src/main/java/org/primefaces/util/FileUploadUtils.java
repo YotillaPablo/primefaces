@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -45,7 +45,6 @@ import javax.faces.validator.ValidatorException;
 import javax.servlet.http.HttpServletRequest;
 
 import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.io.IOUtils;
 import org.primefaces.component.fileupload.FileUpload;
 import org.primefaces.component.fileupload.FileUploadChunkDecoder;
 import org.primefaces.component.fileupload.FileUploadDecoder;
@@ -115,8 +114,8 @@ public class FileUploadUtils {
             if (!parentFile.isDirectory()) {
                 throw new ValidationException("Invalid directory", "Invalid directory, specified parent is not a directory.");
             }
-            if (!file.getCanonicalPath().startsWith(parentFile.getCanonicalPath())) {
-                throw new ValidationException("Invalid directory", "Invalid directory, \"" + file + "\" does not inside specified parent.");
+            if (!file.getCanonicalFile().toPath().startsWith(parentFile.getCanonicalFile().toPath())) {
+                throw new ValidationException("Invalid directory", "Invalid directory, \"" + file + "\" does not reside inside specified parent.");
             }
 
             if (!file.getCanonicalPath().equals(filePath)) {
@@ -370,7 +369,7 @@ public class FileUploadUtils {
     public static List<Path> listChunks(Path path) {
         try (Stream<Path> walk = Files.walk(path)) {
             return walk
-                    .filter(p -> Files.isRegularFile(p) && p.getFileName().toString().matches("\\d+"))
+                    .filter(p -> p.toFile().isFile() && p.getFileName().toString().matches("\\d+"))
                     .sorted(Comparator.comparing(p -> Long.parseLong(p.getFileName().toString())))
                     .collect(Collectors.toList());
         }
@@ -381,7 +380,7 @@ public class FileUploadUtils {
 
     public static <T extends HttpServletRequest> List<Path> listChunks(T request) {
         Path chunkDir = getChunkDir(request);
-        if (!Files.exists(chunkDir)) {
+        if (!chunkDir.toFile().exists()) {
             return Collections.emptyList();
         }
 

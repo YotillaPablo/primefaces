@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -74,12 +74,12 @@ public class ClamDaemonScanner implements VirusScanner {
             final byte[] reply = client.scan(inputStream);
             final String message = new String(reply, StandardCharsets.US_ASCII).trim();
             if (LOGGER.isLoggable(Level.INFO)) {
-                LOGGER.log(Level.INFO, "Scanner replied with message:" + message);
+                LOGGER.log(Level.INFO, "Scanner replied with message: {0}", message);
             }
             if (!ClamDaemonClient.isCleanReply(reply)) {
                 String error = createErrorMessage(file, message);
                 if (LOGGER.isLoggable(Level.WARNING)) {
-                    LOGGER.log(Level.WARNING, "ClamAV Error:" + error);
+                    LOGGER.log(Level.WARNING, "ClamAV Error: {0}", error);
                 }
                 throw new VirusException(error);
             }
@@ -102,25 +102,32 @@ public class ClamDaemonScanner implements VirusScanner {
      *
      * @return the {@link ClamDaemonClient}
      */
-    ClamDaemonClient getClamAvClient() {
+    public ClamDaemonClient getClamAvClient() {
         if (client != null) {
             return client;
         }
-        ExternalContext ctx = FacesContext.getCurrentInstance().getExternalContext();
-        String host = ctx.getInitParameter(CONTEXT_PARAM_HOST);
-        int port = Integer.parseInt(ctx.getInitParameter(CONTEXT_PARAM_PORT));
-
-        int timeout = 60000; // default to 1 minute
-        if (ctx.getInitParameter(CONTEXT_PARAM_TIMEOUT) != null) {
-            timeout = Integer.parseInt(ctx.getInitParameter(CONTEXT_PARAM_TIMEOUT));
+        String host = ClamDaemonClient.DEFAULT_HOST;
+        int port = ClamDaemonClient.DEFAULT_PORT;
+        int timeout = ClamDaemonClient.DEFAULT_TIMEOUT;
+        int bufferSize = ClamDaemonClient.DEFAULT_BUFFER;
+        if (FacesContext.getCurrentInstance() != null) {
+            ExternalContext ctx = FacesContext.getCurrentInstance().getExternalContext();
+            if (ctx != null) {
+                if (ctx.getInitParameter(CONTEXT_PARAM_HOST) != null) {
+                    host = ctx.getInitParameter(CONTEXT_PARAM_HOST);
+                }
+                if (ctx.getInitParameter(CONTEXT_PARAM_PORT) != null) {
+                    port = Integer.parseInt(ctx.getInitParameter(CONTEXT_PARAM_PORT));
+                }
+                if (ctx.getInitParameter(CONTEXT_PARAM_TIMEOUT) != null) {
+                    timeout = Integer.parseInt(ctx.getInitParameter(CONTEXT_PARAM_TIMEOUT));
+                }
+                if (ctx.getInitParameter(CONTEXT_PARAM_BUFFER) != null) {
+                    bufferSize = Integer.parseInt(ctx.getInitParameter(CONTEXT_PARAM_BUFFER));
+                }
+            }
         }
-
-        int chunkSize = 2048; // default buffer size in bytes
-        if (ctx.getInitParameter(CONTEXT_PARAM_BUFFER) != null) {
-            chunkSize = Integer.parseInt(ctx.getInitParameter(CONTEXT_PARAM_BUFFER));
-        }
-        client = new ClamDaemonClient(host, port, timeout, chunkSize);
+        client = new ClamDaemonClient(host, port, timeout, bufferSize);
         return client;
     }
-
 }

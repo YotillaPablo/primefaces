@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +29,7 @@ import java.util.List;
 import javax.faces.component.UIComponent;
 import javax.faces.context.FacesContext;
 import javax.faces.context.ResponseWriter;
+import org.primefaces.component.badge.BadgeRenderer;
 
 import org.primefaces.component.menu.AbstractMenu;
 import org.primefaces.component.menu.BaseMenuRenderer;
@@ -52,8 +53,11 @@ public class TabMenuRenderer extends BaseMenuRenderer {
         ResponseWriter writer = context.getResponseWriter();
         TabMenu menu = (TabMenu) component;
         String clientId = menu.getClientId(context);
-        String styleClass = menu.getStyleClass();
-        styleClass = styleClass == null ? TabMenu.CONTAINER_CLASS : TabMenu.CONTAINER_CLASS + " " + styleClass;
+        String styleClass = getStyleClassBuilder(context)
+                .add(TabMenu.CONTAINER_CLASS)
+                .add("ui-tabs-" + menu.getOrientation())
+                .add(menu.getStyleClass())
+                .build();
         int activeIndex = menu.getActiveIndex();
         List<?> elements = menu.getElements();
 
@@ -88,19 +92,17 @@ public class TabMenuRenderer extends BaseMenuRenderer {
     protected void encodeItem(FacesContext context, TabMenu menu, MenuItem item, boolean active) throws IOException {
         ResponseWriter writer = context.getResponseWriter();
         String containerStyle = item.getContainerStyle();
-        String containerStyleClass = item.getContainerStyleClass();
-        String containerClass = active ? TabMenu.ACTIVE_TAB_HEADER_CLASS : TabMenu.INACTIVE_TAB_HEADER_CLASS;
-        if (item.getIcon() != null) {
-            containerClass += " ui-tabmenuitem-hasicon";
-        }
-
-        if (containerStyleClass != null) {
-            containerClass = containerClass + " " + containerStyleClass;
-        }
+        String containerStyleClass = getStyleClassBuilder(context)
+                .add(item.getContainerStyleClass())
+                .add(active, TabMenu.ACTIVE_TAB_HEADER_CLASS, TabMenu.INACTIVE_TAB_HEADER_CLASS)
+                .add(item.isDisabled(), "ui-state-disabled", "ui-state-default")
+                .add(item.getIcon() != null, "ui-tabmenuitem-hasicon")
+                .add(item.getBadge() != null, "ui-overlay-badge")
+                .build();
 
         //header container
         writer.startElement("li", null);
-        writer.writeAttribute("class", containerClass, null);
+        writer.writeAttribute("class", containerStyleClass, null);
         writer.writeAttribute("role", "tab", null);
         writer.writeAttribute(HTML.ARIA_EXPANDED, String.valueOf(active), null);
         writer.writeAttribute(HTML.ARIA_SELECTED, String.valueOf(active), null);
@@ -109,7 +111,11 @@ public class TabMenuRenderer extends BaseMenuRenderer {
             writer.writeAttribute("style", containerStyle, null);
         }
 
-        encodeMenuItem(context, menu, item, "-1");
+        if (item.getBadge() != null) {
+            BadgeRenderer.encode(context, item.getBadge());
+        }
+
+        encodeMenuItem(context, menu, item);
 
         writer.endElement("li");
     }

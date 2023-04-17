@@ -242,6 +242,24 @@ from the `onupload` callback will not send the files.
 <p:fileUpload listener="#{fileBean.handleFileUpload}" onupload="return confirm('Are you sure?')"/>
 ```
 
+## Validate Files Before Adding
+You can add a client side callback, if you want to use a custom function to approve a file before adding using `onAdd`.
+For example only add a file if its named exactly `primefaces.pdf`.
+
+```javascript
+function onAddFile(file, callback) {
+   if (file.name === "primefaces.pdf") {
+       // this callback adds the file to the list
+       callback.call(this, file);
+   }
+}
+```
+
+```xhtml
+<p:fileUpload listener="#{fileUploadView.handleFileUpload}" onAdd="onAddFile(file, callback);"/>
+```
+
+
 ## File Filters
 Users can be restricted to only select the file types you’ve configured, example below demonstrates
 how to accept images only.
@@ -299,6 +317,7 @@ exist, threshold size and temporary file upload location.
 | --- | --- |
 | thresholdSize | Maximum file size in bytes to keep uploaded files in memory. If a file exceeds this limit, it’ll be temporarily written to disk.
 | uploadDirectory | Disk repository path to keep temporary files that exceeds the threshold size. By default it is System.getProperty("java.io.tmpdir")
+| fileCountMax | Sets the maximum number of files allowed per request. Default is unlimited.
 
 An example configuration below defined thresholdSize to be 50kb and uploads to users temporary
 folder.
@@ -314,6 +333,10 @@ folder.
     <init-param>
         <param-name>uploadDirectory</param-name>
         <param-value>/Users/primefaces/temp</param-value>
+    </init-param>
+    <init-param>
+        <param-name>fileCountMax</param-name>
+        <param-value>5</param-value>
     </init-param>
 </filter>
 ```

@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,15 +23,15 @@
  */
 package org.primefaces.config;
 
-import org.primefaces.util.LangUtils;
-
-import javax.faces.context.FacesContext;
-import javax.validation.Validation;
 import java.io.InputStream;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.faces.context.FacesContext;
+import javax.validation.Validation;
+
+import org.primefaces.util.LangUtils;
 
 public class PrimeEnvironment {
 
@@ -41,6 +41,7 @@ public class PrimeEnvironment {
 
     private final boolean atLeastEl22;
 
+    private final boolean atLeastJsf40;
     private final boolean atLeastJsf23;
     private final boolean atLeastJsf22;
     private final boolean atLeastJsf21;
@@ -56,21 +57,22 @@ public class PrimeEnvironment {
     private final boolean htmlSanitizerAvailable;
 
     public PrimeEnvironment(FacesContext context) {
-        atLeastEl22 = LangUtils.tryToLoadClassForName("javax.el.ValueReference") != null;
+        atLeastEl22 = LangUtils.isClassAvailable("javax.el.ValueReference");
 
-        atLeastJsf23 = LangUtils.tryToLoadClassForName("javax.faces.component.UIImportConstants") != null;
-        atLeastJsf22 = LangUtils.tryToLoadClassForName("javax.faces.flow.Flow") != null;
-        atLeastJsf21 = LangUtils.tryToLoadClassForName("javax.faces.component.TransientStateHolder") != null;
+        atLeastJsf40 = LangUtils.isClassAvailable("jakarta.faces.lifecycle.ClientWindowScoped");
+        atLeastJsf23 = LangUtils.isClassAvailable("javax.faces.component.UIImportConstants");
+        atLeastJsf22 = LangUtils.isClassAvailable("javax.faces.flow.Flow");
+        atLeastJsf21 = LangUtils.isClassAvailable("javax.faces.component.TransientStateHolder");
 
-        atLeastBv11 = LangUtils.tryToLoadClassForName("javax.validation.executable.ExecutableValidator") != null;
+        atLeastBv11 = LangUtils.isClassAvailable("javax.validation.executable.ExecutableValidator");
 
-        atLeastServlet30 = LangUtils.tryToLoadClassForName("javax.servlet.SessionCookieConfig") != null;
+        atLeastServlet30 = LangUtils.isClassAvailable("javax.servlet.SessionCookieConfig");
 
         beanValidationAvailable = resolveBeanValidationAvailable();
 
         buildVersion = resolveBuildVersion();
 
-        htmlSanitizerAvailable = LangUtils.tryToLoadClassForName("org.owasp.html.PolicyFactory") != null;
+        htmlSanitizerAvailable = LangUtils.isClassAvailable("org.owasp.html.PolicyFactory");
 
         if (context == null || context.getExternalContext() == null) {
             mojarra = false;
@@ -81,7 +83,7 @@ public class PrimeEnvironment {
     }
 
     protected boolean resolveBeanValidationAvailable() {
-        boolean beanValidationAvailable = LangUtils.tryToLoadClassForName("javax.validation.Validation") != null;
+        boolean beanValidationAvailable = LangUtils.isClassAvailable("javax.validation.Validation");
 
         if (beanValidationAvailable) {
             // Trial-error approach to check for Bean Validation impl existence.
@@ -126,6 +128,10 @@ public class PrimeEnvironment {
 
     public boolean isAtLeastEl22() {
         return atLeastEl22;
+    }
+
+    public boolean isAtLeastJsf40() {
+        return atLeastJsf40;
     }
 
     public boolean isAtLeastJsf23() {

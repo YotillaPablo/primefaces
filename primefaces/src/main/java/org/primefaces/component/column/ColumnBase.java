@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,7 +28,6 @@ import javax.faces.component.UIColumn;
 import org.primefaces.model.SortMeta;
 import org.primefaces.model.menu.MenuColumn;
 
-
 public abstract class ColumnBase extends UIColumn implements org.primefaces.component.api.UIColumn, MenuColumn {
 
     public static final String COMPONENT_FAMILY = "org.primefaces.component";
@@ -40,19 +39,22 @@ public abstract class ColumnBase extends UIColumn implements org.primefaces.comp
         ariaHeaderText,
         caseSensitiveSort,
         colspan,
+        converter,
         displayPriority,
         draggable,
         exportFooterValue,
         exportFunction,
         exportHeaderValue,
         exportValue,
+        exportColspan,
+        exportRowspan,
         exportable,
+        exportTag,
         field,
         filterBy,
         filterFunction,
         filterMatchMode,
         filterMaxLength,
-        filterOptions,
         filterPosition,
         filterStyle,
         filterStyleClass,
@@ -74,6 +76,7 @@ public abstract class ColumnBase extends UIColumn implements org.primefaces.comp
         sortable,
         style,
         styleClass,
+        title,
         toggleable,
         visible,
         width
@@ -152,17 +155,8 @@ public abstract class ColumnBase extends UIColumn implements org.primefaces.comp
     }
 
     @Override
-    public Object getFilterOptions() {
-        return getStateHelper().eval(PropertyKeys.filterOptions, null);
-    }
-
-    public void setFilterOptions(Object filterOptions) {
-        getStateHelper().put(PropertyKeys.filterOptions, filterOptions);
-    }
-
-    @Override
     public String getFilterMatchMode() {
-        return (String) getStateHelper().eval(PropertyKeys.filterMatchMode, "startsWith");
+        return (String) getStateHelper().eval(PropertyKeys.filterMatchMode, DEFAULT_FILTER_MATCH_MODE.operator());
     }
 
     public void setFilterMatchMode(String filterMatchMode) {
@@ -194,6 +188,14 @@ public abstract class ColumnBase extends UIColumn implements org.primefaces.comp
 
     public void setColspan(int colspan) {
         getStateHelper().put(PropertyKeys.colspan, colspan);
+    }
+
+    public Object getConverter() {
+        return getStateHelper().eval(PropertyKeys.converter, null);
+    }
+
+    public void setConverter(Object converter) {
+        getStateHelper().put(PropertyKeys.converter, converter);
     }
 
     @Override
@@ -386,6 +388,24 @@ public abstract class ColumnBase extends UIColumn implements org.primefaces.comp
     }
 
     @Override
+    public int getExportRowspan() {
+        return (Integer) getStateHelper().eval(PropertyKeys.exportRowspan, 0);
+    }
+
+    public void setExportRowspan(int exportRowspan) {
+        getStateHelper().put(PropertyKeys.exportRowspan, exportRowspan);
+    }
+
+    @Override
+    public int getExportColspan() {
+        return (Integer) getStateHelper().eval(PropertyKeys.exportColspan, 0);
+    }
+
+    public void setExportColspan(int exportColspan) {
+        getStateHelper().put(PropertyKeys.exportColspan, exportColspan);
+    }
+
+    @Override
     public String getExportHeaderValue() {
         return (String) getStateHelper().eval(PropertyKeys.exportHeaderValue, null);
     }
@@ -448,4 +468,21 @@ public abstract class ColumnBase extends UIColumn implements org.primefaces.comp
         getStateHelper().put(PropertyKeys.displayPriority, displayPriority);
     }
 
+    @Override
+    public String getTitle() {
+        return (String) getStateHelper().eval(PropertyKeys.title, null);
+    }
+
+    public void setTitle(String title) {
+        getStateHelper().put(PropertyKeys.title, title);
+    }
+
+    @Override
+    public String getExportTag() {
+        return (String) getStateHelper().eval(PropertyKeys.exportTag, null);
+    }
+
+    public void setExportTag(String exportTag) {
+        getStateHelper().put(PropertyKeys.exportTag, exportTag);
+    }
 }

@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import javax.faces.application.Resource;
 import javax.faces.application.ResourceHandler;
 import javax.faces.application.ResourceHandlerWrapper;
@@ -52,11 +51,11 @@ public class PrimeResourceHandler extends ResourceHandlerWrapper {
         handlers = new HashMap<>();
         handlers.put(DynamicContentType.STREAMED_CONTENT.toString(), new StreamedContentHandler());
 
-        if (LangUtils.tryToLoadClassForName("org.krysalis.barcode4j.output.AbstractCanvasProvider") != null) {
+        if (LangUtils.isClassAvailable("org.krysalis.barcode4j.output.AbstractCanvasProvider")) {
             handlers.put(DynamicContentType.BARCODE.toString(), new BarcodeHandler());
         }
 
-        if (LangUtils.tryToLoadClassForName("io.nayuki.qrcodegen.QrCode") != null) {
+        if (LangUtils.isClassAvailable("io.nayuki.qrcodegen.QrCode")) {
             handlers.put(DynamicContentType.QR_CODE.toString(), new QRCodeHandler());
         }
     }
@@ -90,7 +89,7 @@ public class PrimeResourceHandler extends ResourceHandlerWrapper {
             DynamicContentHandler handler = handlers.get(handlerType);
             if (handler == null) {
                 LOGGER.log(Level.WARNING,
-                        "No dynamic resource handler registered for: {0}. Do you miss a dependency?",
+                        "No dynamic resource handler registered for: [{0}]. Are you missing a dependency?",
                         new Object[]{handlerType});
                 super.handleResourceRequest(context);
             }

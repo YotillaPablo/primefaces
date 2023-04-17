@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -155,7 +155,7 @@ public abstract class DatePicker extends AbstractInputComponent {
     }
 
     public LocalDateTime getValue() {
-        if (getWidgetDate() == null) {
+        if (hasDate() == false) {
             return null;
         }
 
@@ -166,7 +166,7 @@ public abstract class DatePicker extends AbstractInputComponent {
     }
 
     public LocalDate getValueAsLocalDate() {
-        if (getWidgetDate() == null) {
+        if (hasDate() == false) {
             return null;
         }
         Long dayOfMonth = PrimeSelenium.executeScript("return " + getWidgetByIdScript() + ".getDate().getDate();");
@@ -219,6 +219,15 @@ public abstract class DatePicker extends AbstractInputComponent {
      */
     public String getWidgetDate() {
         return PrimeSelenium.executeScript("return " + getWidgetByIdScript() + ".getDate();");
+    }
+
+    /**
+     * Checks whether a date is selected
+     *
+     * @return true if a date is selected.
+     */
+    public boolean hasDate() {
+        return PrimeSelenium.executeScript("return " + getWidgetByIdScript() + ".hasDate();");
     }
 
     /**

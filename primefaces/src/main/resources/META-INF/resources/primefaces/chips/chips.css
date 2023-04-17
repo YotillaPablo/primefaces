@@ -13,8 +13,6 @@
     margin: 0;
     min-height: 1px;
     overflow: hidden;
-    display: flex;
-    flex-wrap: wrap;
 }
 
 .ui-chips-token {
@@ -60,6 +58,7 @@
 
 .ui-fluid .ui-chips {
     display: flex;
+    flex: 1 1 auto;
 }
 
 .ui-fluid .ui-chips .ui-chips-container {

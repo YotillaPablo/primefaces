@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,8 +27,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.el.ELContext;
 
+import javax.el.ELContext;
 import javax.el.MethodExpression;
 import javax.el.ValueExpression;
 import javax.faces.FacesException;
@@ -37,9 +37,12 @@ import javax.faces.component.UIData;
 import javax.faces.context.FacesContext;
 
 import org.primefaces.component.celleditor.CellEditor;
+import org.primefaces.model.MatchMode;
 import org.primefaces.util.LangUtils;
 
 public interface UIColumn {
+
+    MatchMode DEFAULT_FILTER_MATCH_MODE = MatchMode.STARTS_WITH;
 
     /**
      * Used to extract bean's property from a value expression in dynamic columns
@@ -142,6 +145,8 @@ public interface UIColumn {
 
     boolean isResizable();
 
+    String getTitle();
+
     String getStyle();
 
     String getStyleClass();
@@ -169,8 +174,6 @@ public interface UIColumn {
     String getFilterMatchMode();
 
     int getFilterMaxLength();
-
-    Object getFilterOptions();
 
     CellEditor getCellEditor();
 
@@ -216,11 +219,17 @@ public interface UIColumn {
 
     String getExportValue();
 
+    int getExportRowspan();
+
+    int getExportColspan();
+
     boolean isGroupRow();
 
     String getExportHeaderValue();
 
     String getExportFooterValue();
+
+    String getExportTag();
 
     String getSortOrder();
 

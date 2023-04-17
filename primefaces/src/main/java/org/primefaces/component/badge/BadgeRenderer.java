@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,15 +23,16 @@
  */
 package org.primefaces.component.badge;
 
+import java.io.IOException;
+
+import javax.faces.component.UIComponent;
+import javax.faces.context.FacesContext;
+import javax.faces.context.ResponseWriter;
+
 import org.primefaces.functional.IOBiConsumer;
 import org.primefaces.model.badge.BadgeModel;
 import org.primefaces.renderkit.CoreRenderer;
 import org.primefaces.util.LangUtils;
-
-import java.io.IOException;
-import javax.faces.component.UIComponent;
-import javax.faces.context.FacesContext;
-import javax.faces.context.ResponseWriter;
 
 public class BadgeRenderer extends CoreRenderer {
 
@@ -42,7 +43,7 @@ public class BadgeRenderer extends CoreRenderer {
         encode(context, badge, null, hasChildren);
     }
 
-    public static <T extends UIComponent> void encode(FacesContext context, Object badge,
+    public static <T extends UIComponent> void encodeOverlayed(FacesContext context, Object badge,
             IOBiConsumer<FacesContext, T> contentRenderer, T component) throws IOException {
         BadgeModel badgeModel = Badge.getBadgeModel(badge);
         if (badgeModel != null) {
@@ -54,6 +55,14 @@ public class BadgeRenderer extends CoreRenderer {
         }
         else {
             contentRenderer.accept(context, component);
+        }
+    }
+
+    public static void encode(FacesContext context, Object badge) throws IOException {
+        BadgeModel badgeModel = Badge.getBadgeModel(badge);
+        if (badgeModel != null) {
+            BadgeRenderer badgeRenderer = new BadgeRenderer();
+            badgeRenderer.encode(context, null, badgeModel, false);
         }
     }
 
@@ -109,7 +118,7 @@ public class BadgeRenderer extends CoreRenderer {
         }
 
         if (!valueEmpty && model.isVisible()) {
-            writer.write(value);
+            writer.writeText(value, "value");
         }
         writer.endElement("span");
 

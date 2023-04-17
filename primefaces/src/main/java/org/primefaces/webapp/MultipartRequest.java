@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -89,7 +89,7 @@ public class MultipartRequest extends HttpServletRequestWrapper {
             return (characterEncoding == null) ? item.getString() : item.getString(characterEncoding);
         }
         catch (UnsupportedEncodingException e) {
-            LOGGER.log(Level.SEVERE, "Unsupported character encoding " + getRequest().getCharacterEncoding(), e);
+            LOGGER.log(Level.SEVERE, "Unsupported character encoding {0}", getRequest().getCharacterEncoding());
             return item.getString();
         }
     }

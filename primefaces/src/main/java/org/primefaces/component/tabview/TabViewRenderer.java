@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +25,7 @@ package org.primefaces.component.tabview;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.faces.FacesException;
 import javax.faces.component.UIComponent;
@@ -117,6 +118,8 @@ public class TabViewRenderer extends CoreRenderer {
                 .attr("effectDuration", tabView.getEffectDuration(), null)
                 .attr("scrollable", tabView.isScrollable())
                 .attr("tabindex", tabView.getTabindex(), null)
+                .attr("focusOnError", tabView.isFocusOnError(), false)
+                .attr("focusOnLastActiveTab", tabView.isFocusOnLastActiveTab(), true)
                 .attr("touchable", ComponentUtils.isTouchable(context, tabView),  true)
                 .attr("multiViewState", tabView.isMultiViewState(), false);
 
@@ -151,12 +154,14 @@ public class TabViewRenderer extends CoreRenderer {
         writer.writeAttribute(HTML.WIDGET_VAR, widgetVar, null);
 
         if ("bottom".equals(orientation)) {
+            encodeFooter(context, tabView);
             encodeContents(context, tabView);
             encodeHeaders(context, tabView);
         }
         else {
             encodeHeaders(context, tabView);
             encodeContents(context, tabView);
+            encodeFooter(context, tabView);
         }
 
         encodeStateHolder(context, tabView, clientId + "_activeIndex", String.valueOf(tabView.getActiveIndex()));
@@ -175,6 +180,17 @@ public class TabViewRenderer extends CoreRenderer {
         renderHiddenInput(facesContext, name, value, false);
     }
 
+    protected void encodeFooter(FacesContext context, TabView tabView) throws IOException {
+        UIComponent footerFacet = tabView.getFacet("footer");
+        if (ComponentUtils.shouldRenderFacet(footerFacet)) {
+            ResponseWriter writer = context.getResponseWriter();
+            writer.startElement("div", null);
+            writer.writeAttribute("class", "ui-tabs-footer", null);
+            footerFacet.encodeAll(context);
+            writer.endElement("div");
+        }
+    }
+
     protected void encodeHeaders(FacesContext context, TabView tabView) throws IOException {
         ResponseWriter writer = context.getResponseWriter();
         boolean scrollable = tabView.isScrollable();
@@ -191,14 +207,26 @@ public class TabViewRenderer extends CoreRenderer {
         writer.writeAttribute("class", TabView.NAVIGATOR_CLASS, null);
         writer.writeAttribute("role", "tablist", null);
 
+        AtomicBoolean withActiveFacet = new AtomicBoolean(false);
         tabView.forEachTab((tab, i, active) -> {
             try {
-                encodeTabHeader(context, tabView, tab, i, active);
+                if (encodeTabHeader(context, tabView, tab, i, active)) {
+                    withActiveFacet.set(true);
+                }
             }
             catch (IOException ex) {
                 throw new FacesException(ex);
             }
         });
+
+        UIComponent actionsFacet = tabView.getFacet("actions");
+        if (ComponentUtils.shouldRenderFacet(actionsFacet)) {
+            writer.startElement("li", null);
+            writer.writeAttribute("class", "ui-tabs-actions ui-tabs-actions-global", null);
+            writer.writeAttribute(HTML.ARIA_HIDDEN, String.valueOf(withActiveFacet.get()), null);
+            actionsFacet.encodeAll(context);
+            writer.endElement("li");
+        }
 
         writer.endElement("ul");
 
@@ -207,8 +235,9 @@ public class TabViewRenderer extends CoreRenderer {
         }
     }
 
-    protected void encodeTabHeader(FacesContext context, TabView tabView, Tab tab, int index, boolean active)
+    protected boolean encodeTabHeader(FacesContext context, TabView tabView, Tab tab, int index, boolean active)
             throws IOException {
+        boolean withFacet = false;
         ResponseWriter writer = context.getResponseWriter();
         String defaultStyleClass = active ? TabView.ACTIVE_TAB_HEADER_CLASS : TabView.INACTIVE_TAB_HEADER_CLASS;
         defaultStyleClass = defaultStyleClass + " ui-corner-" + tabView.getOrientation();   //cornering
@@ -260,16 +289,18 @@ public class TabViewRenderer extends CoreRenderer {
             writer.endElement("span");
         }
 
-        UIComponent actions = tab.getFacet("actions");
-        if (ComponentUtils.shouldRenderFacet(actions)) {
+        UIComponent optionsFacet = tab.getFacet("actions");
+        if (ComponentUtils.shouldRenderFacet(optionsFacet)) {
+            withFacet = true;
             writer.startElement("li", null);
             writer.writeAttribute("class", "ui-tabs-actions", null);
             writer.writeAttribute(HTML.ARIA_HIDDEN, String.valueOf(!active), null);
-            actions.encodeAll(context);
+            optionsFacet.encodeAll(context);
             writer.endElement("li");
         }
 
         writer.endElement("li");
+        return active && withFacet;
     }
 
     protected void encodeContents(FacesContext context, TabView tabView) throws IOException {

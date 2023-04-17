@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -156,8 +156,15 @@ public class AutoCompleteRenderer extends InputRenderer {
     protected void encodeSingleMarkup(FacesContext context, AutoComplete ac) throws IOException {
         ResponseWriter writer = context.getResponseWriter();
         String clientId = ac.getClientId(context);
-        String styleClass = ac.getStyleClass();
-        styleClass = styleClass == null ? AutoComplete.STYLE_CLASS : AutoComplete.STYLE_CLASS + " " + styleClass;
+        boolean isDropdown = ac.isDropdown();
+        boolean disabled = ac.isDisabled();
+
+        String styleClass = getStyleClassBuilder(context)
+                .add(AutoComplete.STYLE_CLASS)
+                .add(ac.getStyleClass())
+                .add(isDropdown, AutoComplete.DROPDOWN_SYLE_CLASS)
+                .add(disabled, "ui-state-disabled")
+                .build();
 
         writer.startElement("span", null);
         writer.writeAttribute("id", clientId, null);
@@ -173,8 +180,8 @@ public class AutoCompleteRenderer extends InputRenderer {
             encodeHiddenInput(context, ac, clientId);
         }
 
-        if (ac.isDropdown()) {
-            encodeDropDown(context, ac);
+        if (isDropdown) {
+            encodeDropDown(context, ac, clientId);
         }
 
         if (!ac.isDynamic()) {
@@ -295,7 +302,7 @@ public class AutoCompleteRenderer extends InputRenderer {
         writer.endElement("select");
     }
 
-    protected void encodeDropDown(FacesContext context, AutoComplete ac) throws IOException {
+    protected void encodeDropDown(FacesContext context, AutoComplete ac, String clientId) throws IOException {
         ResponseWriter writer = context.getResponseWriter();
         String dropdownClass = AutoComplete.DROPDOWN_CLASS;
         boolean disabled = ac.isDisabled() || ac.isReadonly();
@@ -304,6 +311,7 @@ public class AutoCompleteRenderer extends InputRenderer {
         }
 
         writer.startElement("button", ac);
+        writer.writeAttribute("id", clientId + "_button", null);
         writer.writeAttribute("class", dropdownClass, null);
         writer.writeAttribute("type", "button", null);
         if (LangUtils.isNotBlank(ac.getDropdownAriaLabel())) {
@@ -374,12 +382,19 @@ public class AutoCompleteRenderer extends InputRenderer {
 
         List<String> stringValues = new ArrayList<>();
         boolean disabled = ac.isDisabled();
+        boolean isDropdown = ac.isDropdown();
         String title = ac.getTitle();
 
         String style = ac.getStyle();
-        String styleClass = ac.getStyleClass();
-        styleClass = styleClass == null ? AutoComplete.MULTIPLE_STYLE_CLASS : AutoComplete.MULTIPLE_STYLE_CLASS + " " + styleClass;
-        String listClass = ac.isDropdown() ? AutoComplete.MULTIPLE_CONTAINER_WITH_DROPDOWN_CLASS : AutoComplete.MULTIPLE_CONTAINER_CLASS;
+
+        String styleClass = getStyleClassBuilder(context)
+                .add(AutoComplete.MULTIPLE_STYLE_CLASS)
+                .add(ac.getStyleClass())
+                .add(isDropdown, AutoComplete.DROPDOWN_SYLE_CLASS)
+                .add(disabled, "ui-state-disabled")
+                .build();
+
+        String listClass = isDropdown ? AutoComplete.MULTIPLE_CONTAINER_WITH_DROPDOWN_CLASS : AutoComplete.MULTIPLE_CONTAINER_CLASS;
         listClass = createStyleClass(ac, null, listClass);
         String autocompleteProp = (ac.getAutocomplete() != null) ? ac.getAutocomplete() : "off";
 
@@ -462,7 +477,7 @@ public class AutoCompleteRenderer extends InputRenderer {
         writer.endElement("ul");
 
         if (ac.isDropdown()) {
-            encodeDropDown(context, ac);
+            encodeDropDown(context, ac, clientId);
         }
 
         if (!ac.isDynamic()) {

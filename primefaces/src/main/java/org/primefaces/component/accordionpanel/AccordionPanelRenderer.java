@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,13 +33,19 @@ import javax.faces.component.UIComponent;
 import javax.faces.context.FacesContext;
 import javax.faces.context.ResponseWriter;
 
+import org.primefaces.component.menu.Menu;
+import org.primefaces.component.panel.Panel;
 import org.primefaces.component.tabview.Tab;
 import org.primefaces.renderkit.CoreRenderer;
 import org.primefaces.util.ComponentUtils;
 import org.primefaces.util.HTML;
+import org.primefaces.util.MessageFactory;
+import org.primefaces.util.SharedStringBuilder;
 import org.primefaces.util.WidgetBuilder;
 
 public class AccordionPanelRenderer extends CoreRenderer {
+
+    private static final String SB_RESOLVE_ACTIVE_INDEX = AccordionPanelRenderer.class.getName() + "#resolveActiveIndex";
 
     @Override
     public void decode(FacesContext context, UIComponent component) {
@@ -55,6 +61,11 @@ public class AccordionPanelRenderer extends CoreRenderer {
             }
             else {
                 acco.setActiveIndex(active);
+            }
+
+            if (acco.isMultiViewState()) {
+                AccordionState as = acco.getMultiViewState(true);
+                as.setActiveIndex(acco.getActiveIndex());
             }
         }
 
@@ -92,6 +103,10 @@ public class AccordionPanelRenderer extends CoreRenderer {
         else {
             acco.resetLoadedTabsState();
 
+            if (acco.isMultiViewState()) {
+                acco.restoreMultiViewState();
+            }
+
             encodeMarkup(context, acco);
             encodeScript(context, acco);
         }
@@ -103,6 +118,8 @@ public class AccordionPanelRenderer extends CoreRenderer {
         String widgetVar = acco.resolveWidgetVar(context);
         String styleClass = acco.getStyleClass();
         styleClass = styleClass == null ? AccordionPanel.CONTAINER_CLASS : AccordionPanel.CONTAINER_CLASS + " " + styleClass;
+
+        String activeIndex = resolveActiveIndex(context, acco);
 
         if (ComponentUtils.isRTL(context, acco)) {
             styleClass = styleClass + " ui-accordion-rtl";
@@ -121,9 +138,9 @@ public class AccordionPanelRenderer extends CoreRenderer {
 
         renderDynamicPassThruAttributes(context, acco);
 
-        encodeTabs(context, acco);
+        encodeTabs(context, acco, activeIndex);
 
-        encodeStateHolder(context, acco);
+        encodeStateHolder(context, acco, activeIndex);
 
         writer.endElement("div");
     }
@@ -141,7 +158,8 @@ public class AccordionPanelRenderer extends CoreRenderer {
         wb.attr("multiple", multiple, false)
                 .callback("onTabChange", "function(panel)", acco.getOnTabChange())
                 .callback("onTabShow", "function(panel)", acco.getOnTabShow())
-                .callback("onTabClose", "function(panel)", acco.getOnTabClose());
+                .callback("onTabClose", "function(panel)", acco.getOnTabClose())
+                .attr("multiViewState", acco.isMultiViewState(), false);
 
         if (acco.getTabController() != null) {
             wb.attr("controlled", true);
@@ -152,19 +170,18 @@ public class AccordionPanelRenderer extends CoreRenderer {
         wb.finish();
     }
 
-    protected void encodeStateHolder(FacesContext context, AccordionPanel accordionPanel) throws IOException {
+    protected void encodeStateHolder(FacesContext context, AccordionPanel accordionPanel, String activeIndex) throws IOException {
         String clientId = accordionPanel.getClientId(context);
         String stateHolderId = clientId + "_active";
 
-        renderHiddenInput(context, stateHolderId, accordionPanel.getActiveIndex(), false);
+        renderHiddenInput(context, stateHolderId, activeIndex, false);
     }
 
-    protected void encodeTabs(FacesContext context, AccordionPanel acco) throws IOException {
+    protected void encodeTabs(FacesContext context, AccordionPanel acco, String activeIndex) throws IOException {
         boolean dynamic = acco.isDynamic();
         boolean repeating = acco.isRepeating();
         boolean rtl = acco.getDir().equalsIgnoreCase("rtl");
 
-        String activeIndex = acco.getActiveIndex();
         List<String> activeIndexes = activeIndex == null
                                      ? Collections.<String>emptyList()
                                      : Arrays.asList(activeIndex.split(","));
@@ -205,24 +222,33 @@ public class AccordionPanelRenderer extends CoreRenderer {
             boolean repeating, boolean rtl) throws IOException {
 
         ResponseWriter writer = context.getResponseWriter();
+        String clientId = tab.getClientId(context);
+        Menu optionsMenu = tab.getOptionsMenu();
 
-        String headerClass = active ? AccordionPanel.ACTIVE_TAB_HEADER_CLASS : AccordionPanel.TAB_HEADER_CLASS;
-        headerClass = tab.isDisabled() ? headerClass + " ui-state-disabled" : headerClass;
-        headerClass = tab.getTitleStyleClass() == null ? headerClass : headerClass + " " + tab.getTitleStyleClass();
-        String iconClass = active
-                           ? AccordionPanel.ACTIVE_TAB_HEADER_ICON_CLASS
-                           : (rtl ? AccordionPanel.TAB_HEADER_ICON_RTL_CLASS : AccordionPanel.TAB_HEADER_ICON_CLASS);
-        String contentClass = active
-                              ? AccordionPanel.ACTIVE_TAB_CONTENT_CLASS
-                              : AccordionPanel.INACTIVE_TAB_CONTENT_CLASS;
+        String headerStyleClass = getStyleClassBuilder(context)
+            .add(active, AccordionPanel.ACTIVE_TAB_HEADER_CLASS, AccordionPanel.TAB_HEADER_CLASS)
+            .add(tab.isDisabled(), "ui-state-disabled")
+            .add(tab.getTitleStyleClass())
+            .build();
+
+        String iconStyleClass = getStyleClassBuilder(context)
+            .add(active, AccordionPanel.ACTIVE_TAB_HEADER_ICON_CLASS)
+            .add(!active && rtl, AccordionPanel.TAB_HEADER_ICON_RTL_CLASS)
+            .add(!active && !rtl, AccordionPanel.TAB_HEADER_ICON_CLASS)
+            .build();
+
+        String contentStyleClass = getStyleClassBuilder(context)
+            .add(active, AccordionPanel.ACTIVE_TAB_CONTENT_CLASS, AccordionPanel.INACTIVE_TAB_CONTENT_CLASS)
+            .build();
+
         UIComponent titleFacet = tab.getFacet("title");
         String title = tab.getTitle();
         String tabindex = tab.isDisabled() ? "-1" : accordionPanel.getTabindex();
 
         //header container
         writer.startElement("div", null);
-        writer.writeAttribute("id", tab.getClientId(context) + "_header", null);
-        writer.writeAttribute("class", headerClass, null);
+        writer.writeAttribute("id", clientId + "_header", null);
+        writer.writeAttribute("class", headerStyleClass, null);
         writer.writeAttribute("role", "tab", null);
         writer.writeAttribute(HTML.ARIA_EXPANDED, String.valueOf(active), null);
         writer.writeAttribute(HTML.ARIA_SELECTED, String.valueOf(active), null);
@@ -237,7 +263,7 @@ public class AccordionPanelRenderer extends CoreRenderer {
 
         //icon
         writer.startElement("span", null);
-        writer.writeAttribute("class", iconClass, null);
+        writer.writeAttribute("class", iconStyleClass, null);
         writer.endElement("span");
 
         if (ComponentUtils.shouldRenderFacet(titleFacet)) {
@@ -250,12 +276,27 @@ public class AccordionPanelRenderer extends CoreRenderer {
             writer.write("&nbsp;");
         }
 
+        //options menu trigger
+        if (optionsMenu != null) {
+            encodeIcon(context, tab, "ui-icon-gear", clientId + "_menu", tab.getMenuTitle(), MessageFactory.getMessage(Panel.ARIA_OPTIONS_MENU));
+        }
+
+        //actions
+        UIComponent actionsFacet = tab.getFacet("actions");
+        if (ComponentUtils.shouldRenderFacet(actionsFacet)) {
+            writer.startElement("div", null);
+            writer.writeAttribute("class", Panel.PANEL_ACTIONS_CLASS, null);
+            writer.writeAttribute("onclick", "event.stopPropagation()", null);
+            actionsFacet.encodeAll(context);
+            writer.endElement("div");
+        }
+
         writer.endElement("div");
 
         //content
         writer.startElement("div", null);
-        writer.writeAttribute("id", tab.getClientId(context), null);
-        writer.writeAttribute("class", contentClass, null);
+        writer.writeAttribute("id", clientId, null);
+        writer.writeAttribute("class", contentStyleClass, null);
         writer.writeAttribute("role", "tabpanel", null);
         writer.writeAttribute(HTML.ARIA_HIDDEN, String.valueOf(!active), null);
 
@@ -274,6 +315,16 @@ public class AccordionPanelRenderer extends CoreRenderer {
             tab.encodeAll(context);
         }
 
+        //options menu
+        if (optionsMenu != null) {
+            optionsMenu.setOverlay(true);
+            optionsMenu.setTrigger("@(#" + ComponentUtils.escapeSelector(clientId) + "_menu)");
+            optionsMenu.setMy("left top");
+            optionsMenu.setAt("left bottom");
+
+            optionsMenu.encodeAll(context);
+        }
+
         writer.endElement("div");
     }
 
@@ -285,5 +336,66 @@ public class AccordionPanelRenderer extends CoreRenderer {
     @Override
     public boolean getRendersChildren() {
         return true;
+    }
+
+    protected void encodeIcon(FacesContext context, Tab tab, String iconClass, String id, String title, String ariaLabel) throws IOException {
+        ResponseWriter writer = context.getResponseWriter();
+
+        writer.startElement("a", null);
+        if (id != null) {
+            writer.writeAttribute("id", id, null);
+        }
+        writer.writeAttribute("href", "#", null);
+        writer.writeAttribute("class", Panel.PANEL_TITLE_ICON_CLASS, null);
+        if (title != null) {
+            writer.writeAttribute("title", title, null);
+        }
+
+        if (ariaLabel != null) {
+            writer.writeAttribute(HTML.ARIA_LABEL, ariaLabel, null);
+        }
+
+        writer.writeAttribute("onclick", "event.stopPropagation()", null);
+
+        writer.startElement("span", null);
+        writer.writeAttribute("class", "ui-icon " + iconClass, null);
+        writer.endElement("span");
+
+        writer.endElement("a");
+    }
+
+    protected String resolveActiveIndex(FacesContext context, AccordionPanel accordionPanel) {
+
+        String activeIndex = accordionPanel.getActiveIndex();
+        if ("all".equals(activeIndex)) {
+            int childCount = 0;
+
+            String var = accordionPanel.getVar();
+            if (var == null) {
+                for (UIComponent child : accordionPanel.getChildren()) {
+                    if (child.isRendered() && child instanceof Tab) {
+                        childCount++;
+                    }
+                }
+            }
+            else {
+                childCount = accordionPanel.getRowCount();
+
+                // add some puffer for dynamic added tabs
+                childCount += childCount * 2;
+            }
+
+            StringBuilder sb = SharedStringBuilder.get(context, SB_RESOLVE_ACTIVE_INDEX);
+            for (int i = 0; i < childCount; i++) {
+                if (i > 0) {
+                    sb.append(",");
+                }
+                sb.append(i);
+            }
+
+            activeIndex = sb.toString();
+        }
+
+        return activeIndex;
     }
 }

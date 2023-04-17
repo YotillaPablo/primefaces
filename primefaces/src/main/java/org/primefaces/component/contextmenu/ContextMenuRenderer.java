@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -61,7 +61,8 @@ public class ContextMenuRenderer extends TieredMenuRenderer {
                 .attr("selectionMode", menu.getSelectionMode(), "multiple")
                 .callback("beforeShow", "function(event)", menu.getBeforeShow())
                 .attr("targetFilter", menu.getTargetFilter(), null)
-                .attr("touchable", ComponentUtils.isTouchable(context, menu),  true);
+                .attr("touchable", ComponentUtils.isTouchable(context, menu),  true)
+                .attr("disabled", menu.isDisabled(), false);
 
         wb.finish();
     }

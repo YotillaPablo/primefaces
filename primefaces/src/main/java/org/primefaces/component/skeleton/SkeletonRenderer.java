@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,13 +23,14 @@
  */
 package org.primefaces.component.skeleton;
 
-import org.primefaces.renderkit.CoreRenderer;
+import java.io.IOException;
 
 import javax.faces.component.UIComponent;
 import javax.faces.context.FacesContext;
 import javax.faces.context.ResponseWriter;
 
-import java.io.IOException;
+import org.primefaces.renderkit.CoreRenderer;
+import org.primefaces.util.LangUtils;
 
 public class SkeletonRenderer extends CoreRenderer {
 
@@ -49,15 +50,17 @@ public class SkeletonRenderer extends CoreRenderer {
         boolean hasSize = size != null;
         String style = getStyleBuilder(context)
                          .add(skeleton.getStyle())
-                         .add(hasSize,  "width", size, skeleton.getWidth())
-                         .add(hasSize,  "height", size, skeleton.getHeight())
-                         .add(borderRadius != null,  "borderRadius", borderRadius)
+                         .add(hasSize, "width", size, skeleton.getWidth())
+                         .add(hasSize, "height", size, skeleton.getHeight())
+                         .add(borderRadius != null, "border-radius", borderRadius)
                          .build();
 
         writer.startElement("div", null);
         writer.writeAttribute("id", skeleton.getClientId(context), "id");
         writer.writeAttribute("class", styleClass, "styleClass");
-        writer.writeAttribute("style", style, "style");
+        if (LangUtils.isNotBlank(style)) {
+            writer.writeAttribute("style", style, "style");
+        }
 
         writer.endElement("div");
     }

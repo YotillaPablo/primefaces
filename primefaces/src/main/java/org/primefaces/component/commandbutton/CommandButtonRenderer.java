@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,8 @@
 package org.primefaces.component.commandbutton;
 
 import java.io.IOException;
-
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.faces.FacesException;
 import javax.faces.component.UIComponent;
 import javax.faces.component.UIForm;
@@ -40,6 +41,8 @@ import org.primefaces.util.HTML;
 import org.primefaces.util.WidgetBuilder;
 
 public class CommandButtonRenderer extends CoreRenderer {
+
+    private static final Logger LOGGER = Logger.getLogger(CommandButtonRenderer.class.getName());
 
     @Override
     public void decode(FacesContext context, UIComponent component) {
@@ -120,9 +123,7 @@ public class CommandButtonRenderer extends CoreRenderer {
 
         if (value == null) {
             //For ScreenReader
-            String text = (title != null) ? title : "ui-button";
-
-            writer.writeText(text, "title");
+            writer.write(getIconOnlyButtonText(title, button.getAriaLabel()));
         }
         else {
             if (button.isEscape()) {
@@ -148,9 +149,10 @@ public class CommandButtonRenderer extends CoreRenderer {
             request = buildAjaxRequest(context, button);
         }
         else {
-            UIForm form = ComponentTraversalUtils.closestForm(context, button);
+            UIForm form = ComponentTraversalUtils.closestForm(button);
             if (form == null) {
-                throw new FacesException("CommandButton : \"" + clientId + "\" must be inside a form element");
+                LOGGER.log(Level.FINE, "CommandButton '{0}' should be inside a form or should reference a form via its form attribute."
+                            + " We will try to find a fallback form on the client side.", clientId);
             }
 
             request = buildNonAjaxRequest(context, button, form, null, false);
@@ -167,7 +169,8 @@ public class CommandButtonRenderer extends CoreRenderer {
     protected void encodeScript(FacesContext context, CommandButton button) throws IOException {
         WidgetBuilder wb = getWidgetBuilder(context);
         wb.init("CommandButton", button)
-            .attr("disableOnAjax", button.isDisableOnAjax(), false);
+            .attr("disableOnAjax", button.isDisableOnAjax(), true)
+            .attr("disabledAttr", button.isDisabled(), false);
 
         encodeClientBehaviors(context, button);
 

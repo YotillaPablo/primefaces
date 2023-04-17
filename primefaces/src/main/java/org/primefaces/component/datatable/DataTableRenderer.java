@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,14 +24,13 @@
 package org.primefaces.component.datatable;
 
 import java.io.IOException;
-import java.util.Collection;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import javax.el.ELContext;
 import javax.el.MethodExpression;
 import javax.el.ValueExpression;
@@ -41,7 +40,6 @@ import javax.faces.component.UINamingContainer;
 import javax.faces.component.ValueHolder;
 import javax.faces.context.FacesContext;
 import javax.faces.context.ResponseWriter;
-import javax.faces.model.SelectItem;
 
 import org.primefaces.component.api.DynamicColumn;
 import org.primefaces.component.api.UIColumn;
@@ -49,7 +47,8 @@ import org.primefaces.component.celleditor.CellEditor;
 import org.primefaces.component.column.Column;
 import org.primefaces.component.columngroup.ColumnGroup;
 import org.primefaces.component.columns.Columns;
-import org.primefaces.component.datatable.feature.*;
+import org.primefaces.component.datatable.feature.DataTableFeature;
+import org.primefaces.component.datatable.feature.DataTableFeatures;
 import org.primefaces.component.headerrow.HeaderRow;
 import org.primefaces.component.row.Row;
 import org.primefaces.component.subtable.SubTable;
@@ -69,7 +68,7 @@ public class DataTableRenderer extends DataRenderer {
     public void decode(FacesContext context, UIComponent component) {
         DataTable table = (DataTable) component;
 
-        for (DataTableFeature feature : DataTable.FEATURES) {
+        for (DataTableFeature feature : DataTableFeatures.all()) {
             if (feature.shouldDecode(context, table)) {
                 feature.decode(context, table);
             }
@@ -83,7 +82,7 @@ public class DataTableRenderer extends DataRenderer {
         DataTable table = (DataTable) component;
 
         if (table.shouldEncodeFeature(context)) {
-            for (DataTableFeature feature : DataTable.FEATURES) {
+            for (DataTableFeature feature : DataTableFeatures.all()) {
                 if (feature.shouldEncode(context, table)) {
                     feature.encode(context, this, table);
                 }
@@ -105,6 +104,10 @@ public class DataTableRenderer extends DataRenderer {
 
         encodeMarkup(context, table);
         encodeScript(context, table);
+
+        if (table.isPaginator() && table.getRows() == 0) {
+            LOGGER.log(Level.WARNING, "DataTable with paginator=true should also set the rows attribute. ClientId: {0}", table.getClientId());
+        }
     }
 
     protected void preRender(FacesContext context, DataTable table) {
@@ -138,17 +141,17 @@ public class DataTableRenderer extends DataRenderer {
         }
         else {
             if (table.isFilteringCurrentlyActive()) {
-                FilterFeature.getInstance().filter(context, table);
+                DataTableFeatures.filterFeature().filter(context, table);
             }
 
             if (table.isSortingCurrentlyActive()) {
-                SortFeature.getInstance().sort(context, table);
+                DataTableFeatures.sortFeature().sort(context, table);
                 table.setRowIndex(-1); // why?
             }
         }
 
         if (table.isSelectionEnabled()) {
-            SelectionFeature.getInstance().decodeSelectionRowKeys(context, table);
+            DataTableFeatures.selectionFeature().decodeSelectionRowKeys(context, table);
         }
 
         if (table.isPaginator()) {
@@ -161,7 +164,12 @@ public class DataTableRenderer extends DataRenderer {
 
     protected void encodeScript(FacesContext context, DataTable table) throws IOException {
         String selectionMode = table.resolveSelectionMode();
-        String widgetClass = (table.getFrozenColumns() == 0) ? "DataTable" : "FrozenDataTable";
+        boolean isFrozenTable = (table.getFrozenColumns() > 0);
+        String widgetClass = isFrozenTable ? "FrozenDataTable" : "DataTable";
+
+        if (isFrozenTable && !table.isScrollable()) {
+            throw new FacesException("Frozen columns can only be used with a table set scrollable='true'.");
+        }
 
         WidgetBuilder wb = getWidgetBuilder(context);
         wb.init(widgetClass, table);
@@ -272,7 +280,7 @@ public class DataTableRenderer extends DataRenderer {
         boolean scrollable = table.isScrollable();
         boolean hasPaginator = table.isPaginator();
         boolean resizable = table.isResizableColumns();
-        String style = table.getStyle();
+        String style = Objects.toString(table.getStyle(), Constants.EMPTY_STRING);
         String paginatorPosition = table.getPaginatorPosition();
         int frozenColumns = table.getFrozenColumns();
         boolean hasFrozenColumns = (frozenColumns != 0);
@@ -659,7 +667,6 @@ public class DataTableRenderer extends DataRenderer {
         writer.startElement("th", component);
         writer.writeAttribute("id", clientId, null);
         writer.writeAttribute("class", columnClass, null);
-        writer.writeAttribute("role", "columnheader", null);
         writer.writeAttribute(HTML.ARIA_LABEL, ariaHeaderLabel, null);
         writer.writeAttribute("scope", "col", null);
         if (component != null) {
@@ -694,8 +701,8 @@ public class DataTableRenderer extends DataRenderer {
             encodeColumnHeaderContent(context, table, column, sortMeta);
         }
 
-        if (selectionMode != null && "multiple".equalsIgnoreCase(selectionMode)) {
-            encodeCheckbox(context, table, false, false, HTML.CHECKBOX_ALL_CLASS, true);
+        if (selectionMode != null && "multiple".equalsIgnoreCase(selectionMode) && table.isShowSelectAll()) {
+            encodeCheckbox(context, table, table.isSelectAll(), false, HTML.CHECKBOX_ALL_CLASS, true);
         }
 
         writer.endElement("th");
@@ -805,66 +812,6 @@ public class DataTableRenderer extends DataRenderer {
     protected void encodeFilterInput(UIColumn column, ResponseWriter writer, boolean disableTabbing,
         String filterId, String filterStyleClass, Object filterValue, String ariaLabelId) throws IOException {
 
-        if (hasFilterOptions(column)) {
-            encodeFilterInputSelect(column, writer, disableTabbing, filterId, filterStyleClass, filterValue, ariaLabelId);
-        }
-        else {
-            encodeFilterInputText(column, writer, disableTabbing, filterId, filterStyleClass, filterValue, ariaLabelId);
-        }
-    }
-
-    private boolean hasFilterOptions(UIColumn column) {
-        boolean hasFilterOptionsVE = column.getValueExpression(Column.PropertyKeys.filterOptions.toString()) != null;
-        if (!hasFilterOptionsVE) {
-            return false;
-        }
-
-        SelectItem[] filterOptions = getFilterOptions(column);
-        return filterOptions != null && filterOptions.length != 0;
-    }
-
-    protected void encodeFilterInputSelect(UIColumn column, ResponseWriter writer, boolean disableTabbing,
-        String filterId, String filterStyleClass, Object filterValue, String ariaLabelId) throws IOException {
-
-        filterStyleClass = filterStyleClass == null ? DataTable.COLUMN_FILTER_CLASS : DataTable.COLUMN_FILTER_CLASS + " " + filterStyleClass;
-
-        writer.startElement("select", null);
-        writer.writeAttribute("id", filterId, null);
-        writer.writeAttribute("name", filterId, null);
-        writer.writeAttribute("class", filterStyleClass, null);
-        writer.writeAttribute(HTML.ARIA_LABELLEDBY, ariaLabelId, null);
-
-        if (disableTabbing) {
-            writer.writeAttribute("tabindex", "-1", null);
-        }
-
-        SelectItem[] itemsArray = getFilterOptions(column);
-
-        for (SelectItem item : itemsArray) {
-            Object itemValue = item.getValue();
-
-            writer.startElement("option", null);
-            writer.writeAttribute("value", item.getValue(), null);
-            if (itemValue != null && String.valueOf(itemValue).equals(filterValue)) {
-                writer.writeAttribute("selected", "selected", null);
-            }
-
-            if (item.isEscape()) {
-                writer.writeText(item.getLabel(), "value");
-            }
-            else {
-                writer.write(item.getLabel());
-            }
-
-            writer.endElement("option");
-        }
-
-        writer.endElement("select");
-    }
-
-    protected void encodeFilterInputText(UIColumn column, ResponseWriter writer, boolean disableTabbing,
-        String filterId, String filterStyleClass, Object filterValue, String ariaLabelId) throws IOException {
-
         filterStyleClass = filterStyleClass == null
                            ? DataTable.COLUMN_INPUT_FILTER_CLASS
                            : DataTable.COLUMN_INPUT_FILTER_CLASS + " " + filterStyleClass;
@@ -913,20 +860,6 @@ public class DataTableRenderer extends DataRenderer {
             }
         }
         return filterValue;
-    }
-
-    protected SelectItem[] getFilterOptions(UIColumn column) {
-        Object options = column.getFilterOptions();
-
-        if (options instanceof SelectItem[]) {
-            return (SelectItem[]) options;
-        }
-        else if (options instanceof Collection<?>) {
-            return ((Collection<SelectItem>) column.getFilterOptions()).toArray(new SelectItem[]{});
-        }
-        else {
-            throw new FacesException("Filter options for column " + column.getClientId() + " should be a SelectItem array or collection");
-        }
     }
 
     public void encodeColumnFooter(FacesContext context, DataTable table, UIColumn column) throws IOException {
@@ -1014,7 +947,6 @@ public class DataTableRenderer extends DataRenderer {
                         String rowStyle = headerRow.getStyle();
 
                         writer.startElement("tr", null);
-                        writer.writeAttribute("role", "row", null);
                         if (rowClass != null) {
                             writer.writeAttribute("class", rowClass, null);
                         }
@@ -1052,7 +984,6 @@ public class DataTableRenderer extends DataRenderer {
         }
         else {
             writer.startElement("tr", null);
-            writer.writeAttribute("role", "row", null);
 
             for (int i = columnStart; i < columnEnd; i++) {
                 UIColumn column = columns.get(i);
@@ -1154,7 +1085,7 @@ public class DataTableRenderer extends DataRenderer {
         String clientId = table.getClientId(context);
         SummaryRow summaryRow = table.getSummaryRow();
         HeaderRow headerRow = table.getHeaderRow();
-        ELContext eLContext = context.getELContext();
+        ELContext elContext = context.getELContext();
 
         SortMeta sort = table.getHighestPriorityActiveSortMeta();
         boolean encodeHeaderRow = headerRow != null && headerRow.isEnabled() && sort != null;
@@ -1170,7 +1101,7 @@ public class DataTableRenderer extends DataRenderer {
 
             table.setRowIndex(i);
 
-            if (encodeHeaderRow && (i == first || !isInSameGroup(context, table, i, -1, sort.getSortBy(), eLContext))) {
+            if (encodeHeaderRow && (i == first || !isInSameGroup(context, table, i, -1, sort.getSortBy(), elContext))) {
                 table.setRowIndex(i);
                 encodeHeaderRow(context, table, headerRow);
             }
@@ -1178,7 +1109,7 @@ public class DataTableRenderer extends DataRenderer {
             table.setRowIndex(i);
             encodeRow(context, table, clientId, i, columnStart, columnEnd);
 
-            if (encodeSummaryRow && !isInSameGroup(context, table, i, 1, sort.getSortBy(), eLContext)) {
+            if (encodeSummaryRow && !isInSameGroup(context, table, i, 1, sort.getSortBy(), elContext)) {
                 table.setRowIndex(i);
                 encodeSummaryRow(context, summaryRow, sort);
             }
@@ -1226,7 +1157,7 @@ public class DataTableRenderer extends DataRenderer {
             throws IOException {
 
         ResponseWriter writer = context.getResponseWriter();
-        boolean selectionEnabled = table.isSelectionEnabled() && !table.isDisabledSelection();
+        boolean selectionEnabled = table.isSelectionEnabled();
         boolean rowExpansionAvailable = table.getRowExpansion() != null;
         String rowKey = null;
         List<UIColumn> columns = table.getColumns();
@@ -1238,12 +1169,14 @@ public class DataTableRenderer extends DataRenderer {
 
         //Preselection
         boolean selected = selectionEnabled && table.getSelectedRowKeys().contains(rowKey);
+        boolean disabled = table.isDisabledSelection();
+        boolean allowSelection = selectionEnabled && !disabled;
         boolean expanded = table.isExpandedRow() || (rowExpansionAvailable && table.getExpandedRowKeys().contains(rowKey));
 
         String rowStyleClass = getStyleClassBuilder(context)
                 .add(DataTable.ROW_CLASS)
                 .add(rowIndex % 2 == 0, DataTable.EVEN_ROW_CLASS, DataTable.ODD_ROW_CLASS)
-                .add(selectionEnabled, DataTable.SELECTABLE_ROW_CLASS)
+                .add(allowSelection, DataTable.SELECTABLE_ROW_CLASS)
                 .add(selected, "ui-state-highlight")
                 .add(table.isEditingRow(),  DataTable.EDITING_ROW_CLASS)
                 .add(table.getRowStyleClass())
@@ -1256,7 +1189,7 @@ public class DataTableRenderer extends DataRenderer {
             writer.writeAttribute("data-rk", rowKey, null);
         }
         writer.writeAttribute("class", rowStyleClass, null);
-        writer.writeAttribute("role", "row", null);
+        writer.writeAttribute("title", table.getRowTitle(), null);
         if (selectionEnabled) {
             writer.writeAttribute(HTML.ARIA_SELECTED, String.valueOf(selected), null);
         }
@@ -1268,20 +1201,20 @@ public class DataTableRenderer extends DataRenderer {
             UIColumn column = columns.get(i);
 
             if (column instanceof Column) {
-                encodeCell(context, table, column, selected, selectionEnabled, rowIndex);
+                encodeCell(context, table, column, selected, allowSelection, rowIndex);
             }
             else if (column instanceof DynamicColumn) {
                 DynamicColumn dynamicColumn = (DynamicColumn) column;
                 dynamicColumn.applyModel();
 
-                encodeCell(context, table, dynamicColumn, false, selectionEnabled, rowIndex);
+                encodeCell(context, table, dynamicColumn, false, allowSelection, rowIndex);
             }
         }
 
         writer.endElement("tr");
 
         if (expanded) {
-            RowExpandFeature.getInstance().encodeExpansion(context, this, table, rowIndex);
+            DataTableFeatures.rowExpandFeature().encodeExpansion(context, this, table, rowIndex);
         }
 
         return true;
@@ -1306,6 +1239,7 @@ public class DataTableRenderer extends DataRenderer {
         CellEditor editor = column.getCellEditor();
         boolean editorEnabled = editor != null && editor.isRendered();
         int responsivePriority = column.getResponsivePriority();
+        String title = column.getTitle();
         String style = column.getStyle();
 
         String styleClass = getStyleClassBuilder(context)
@@ -1335,6 +1269,9 @@ public class DataTableRenderer extends DataRenderer {
         }
         if (styleClass != null) {
             writer.writeAttribute("class", styleClass, null);
+        }
+        if (title != null) {
+            writer.writeAttribute("title", title, null);
         }
         UIComponent component = (column instanceof UIComponent) ? (UIComponent) column : null;
         if (component != null) {
@@ -1501,10 +1438,12 @@ public class DataTableRenderer extends DataRenderer {
             encodeNativeRadio(context, table, checked, disabled);
         }
         else {
-            String boxClass = HTML.RADIOBUTTON_BOX_CLASS;
             String iconClass = checked ? HTML.RADIOBUTTON_CHECKED_ICON_CLASS : HTML.RADIOBUTTON_UNCHECKED_ICON_CLASS;
-            boxClass = disabled ? boxClass + " ui-state-disabled" : boxClass;
-            boxClass = checked ? boxClass + " ui-state-active" : boxClass;
+            String boxClass = getStyleClassBuilder(context)
+                        .add(HTML.RADIOBUTTON_BOX_CLASS)
+                        .add(disabled, "ui-state-disabled")
+                        .add(checked, "ui-state-active")
+                        .build();
 
             writer.startElement("div", null);
             writer.writeAttribute("class", HTML.RADIOBUTTON_CLASS, null);
@@ -1553,9 +1492,11 @@ public class DataTableRenderer extends DataRenderer {
         else {
             String ariaRowLabel = table.getAriaRowLabel();
             Object rowKey = null;
-            String boxClass = HTML.CHECKBOX_BOX_CLASS;
-            boxClass = disabled ? boxClass + " ui-state-disabled" : boxClass;
-            boxClass = checked ? boxClass + " ui-state-active" : boxClass;
+            String boxClass = getStyleClassBuilder(context)
+                        .add(HTML.CHECKBOX_BOX_CLASS)
+                        .add(disabled, "ui-state-disabled")
+                        .add(checked, "ui-state-active")
+                        .build();
             String iconClass = checked ? HTML.CHECKBOX_CHECKED_ICON_CLASS : HTML.CHECKBOX_UNCHECKED_ICON_CLASS;
 
             if (isHeaderCheckbox) {
@@ -1653,17 +1594,37 @@ public class DataTableRenderer extends DataRenderer {
     }
 
     protected boolean isInSameGroup(FacesContext context, DataTable table, int currentRowIndex, int step, ValueExpression groupByVE,
-                                    ELContext eLContext) {
+                                    ELContext elContext) {
 
         table.setRowIndex(currentRowIndex);
-        Object currentGroupByData = groupByVE.getValue(eLContext);
+        Object currentGroupByData = groupByVE.getValue(elContext);
 
-        table.setRowIndex(currentRowIndex + step);
-        if (!table.isRowAvailable()) {
-            return false;
+        int nextRowIndex = currentRowIndex + step;
+
+        Object nextGroupByData;
+
+        // in case of a lazy DataTable, the LazyDataModel currently only loads rows inside the current page; we need a small hack here
+        // 1) get the rowData manually for the next row
+        // 2) put it into request-scope
+        // 3) invoke the groupBy ValueExpression
+        if (table.isLazy()) {
+            Object nextRowData = table.getLazyDataModel().getRowData(nextRowIndex, table.getActiveSortMeta(), table.getActiveFilterMeta());
+            if (nextRowData == null) {
+                return false;
+            }
+
+            nextGroupByData = ComponentUtils.executeInRequestScope(context, table.getVar(), nextRowData, () -> {
+                return groupByVE.getValue(elContext);
+            });
         }
+        else {
+            table.setRowIndex(nextRowIndex);
+            if (!table.isRowAvailable()) {
+                return false;
+            }
 
-        Object nextGroupByData = groupByVE.getValue(eLContext);
+            nextGroupByData = groupByVE.getValue(elContext);
+        }
 
         return Objects.equals(nextGroupByData, currentGroupByData);
     }
@@ -1710,8 +1671,9 @@ public class DataTableRenderer extends DataRenderer {
     protected Map<SortMeta, String> getSortableColumnHeaders(FacesContext context, DataTable table) {
         AtomicReference<String> headerLabel = new AtomicReference<>(null);
 
-        Map<SortMeta, String> headers = new HashMap<>();
-        for (SortMeta sortMeta : table.getSortByAsMap().values()) {
+        Map<String, SortMeta> sortByAsMap = table.getSortByAsMap();
+        Map<SortMeta, String> headers = new LinkedHashMap<>(sortByAsMap.size());
+        for (SortMeta sortMeta : sortByAsMap.values()) {
             if (sortMeta.isHeaderRow()) {
                 continue;
             }

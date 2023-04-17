@@ -1,11 +1,11 @@
 /* http://keith-wood.name/keypad.html
-   Keypad field entry extension for jQuery v2.1.0.
+   Keypad field entry extension for jQuery v2.1.1.
    Written by Keith Wood (kbwood{at}iinet.com.au) August 2008.
    Available under the MIT (http://keith-wood.name/licence.html) license.
    Please attribute the author if you use it. */
 
 /* globals JQClass */
-/*! Simple JavaScript Inheritance
+/* Simple JavaScript Inheritance
  * By John Resig http://ejohn.org/
  * MIT Licensed.
  */
@@ -84,7 +84,7 @@
 		return JQClass;
 	};
 })();
-/*! Abstract base class for collection plugins v1.0.2.
+/* Abstract base class for collection plugins v1.0.2.
 	Written by Keith Wood (wood.keith{at}optusnet.com.au) December 2013.
 	Licensed under the MIT license (http://keith-wood.name/licence.html). */
 (function($) { // Ensure $, encapsulate
@@ -994,6 +994,7 @@ $('selector').tabs(); // And instantiate it */
 		_clearValue: function(inst) {
 			this._setValue(inst, '', 0);
 			this._notifyKeypress(inst, plugin.DEL);
+			inst._input.trigger('focus'); // for further typing
 		},
 
 		/** Erase the last character.
@@ -1009,6 +1010,7 @@ $('selector').tabs(); // And instantiate it */
 			this._setValue(inst, (value.length === 0 ? '' :
 				value.substr(0, range[0] - 1) + value.substr(range[1])), range[0] - 1);
 			this._notifyKeypress(inst, plugin.BS);
+			inst._input.trigger('focus'); // for further typing
 		},
 
 		/** Update the text field with the selected value.

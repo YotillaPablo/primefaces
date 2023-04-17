@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,8 +32,6 @@ import javax.faces.component.EditableValueHolder;
  */
 @SuppressWarnings({"SerializableHasSerializationMethods", "NonSerializableFieldInSerializableClass"})
 public class SavedState implements Serializable {
-
-    public static final SavedState NULL_STATE = new SavedState();
 
     private static final long serialVersionUID = 4325654657465654768L;
 

@@ -9,6 +9,7 @@
  * @prop {string} menuId Client ID of the menu overlay panel.
  * @prop {PrimeFaces.CssTransitionHandler | null} [transition] Handler for CSS transitions used by this widget.
  * @prop {number} [timeoutId] Timeout ID used for the animation when the menu is shown.
+ * @prop {number} [ajaxCount] Number of concurrent active Ajax requests.
  *
  * @interface {PrimeFaces.widget.MenuButtonCfg} cfg The configuration for the {@link  MenuButton| MenuButton widget}.
  * You can access this configuration via {@link PrimeFaces.widget.BaseWidget.cfg|BaseWidget.cfg}. Please note that this
@@ -160,10 +161,8 @@ PrimeFaces.widget.MenuButton = PrimeFaces.widget.TieredMenu.extend({
             if ($this.cfg.disabled) {
                 return;
             }
-            var keyCode = $.ui.keyCode;
-
-            switch(e.which) {
-                case keyCode.UP:
+            switch(e.key) {
+                case 'ArrowUp':
                     if($this.menu.is(':visible')) {
                         var highlightedItem = $this.menuitems.filter('.ui-state-hover'),
                         prevItems = highlightedItem.length ? highlightedItem.prevAll(':not(.ui-separator)') : null;
@@ -176,7 +175,7 @@ PrimeFaces.widget.MenuButton = PrimeFaces.widget.TieredMenu.extend({
                     e.preventDefault();
                 break;
 
-                case keyCode.DOWN:
+                case 'ArrowDown':
                     if($this.menu.is(':visible')) {
                         var highlightedItem = $this.menuitems.filter('.ui-state-hover'),
                         nextItems = highlightedItem.length ? highlightedItem.nextAll(':not(.ui-separator)') : $this.menuitems.eq(0);
@@ -189,8 +188,8 @@ PrimeFaces.widget.MenuButton = PrimeFaces.widget.TieredMenu.extend({
                     e.preventDefault();
                 break;
 
-                case keyCode.ENTER:
-                case keyCode.SPACE:
+                case 'Enter':
+                case ' ':
                     if($this.menu.is(':visible'))
                         $this.menuitems.filter('.ui-state-hover').children('a').trigger('click');
                     else
@@ -199,24 +198,45 @@ PrimeFaces.widget.MenuButton = PrimeFaces.widget.TieredMenu.extend({
                     e.preventDefault();
                 break;
 
-                case keyCode.ESCAPE:
-                case keyCode.TAB:
+                case 'Escape':
+                case 'Tab':
                     $this.hide();
                 break;
             }
         });
 
-        if (this.cfg.disableOnAjax === true) {
-            $(document).on('pfAjaxSend.' + this.id, function(e, xhr, settings) {
-                if ($this.isXhrSource(settings)) {
+        $this.ajaxCount = 0;
+        $(document).on('pfAjaxSend.' + this.id, function(e, xhr, settings) {
+            if ($this.isXhrSource(settings)) {
+                $this.ajaxCount++;
+                if ($this.ajaxCount > 1) {
+                    return;
+                }
+                $this.button.addClass('ui-state-loading');
+                if ($this.cfg.disableOnAjax !== false) {
                     $this.disable();
                 }
-            }).on('pfAjaxComplete.' + this.id, function(e, xhr, settings) {
-                if ($this.isXhrSource(settings)) {
+                var loadIcon = $('<span class="ui-icon-loading ui-icon ui-c pi pi-spin pi-spinner"></span>');
+                var uiIcon = $this.button.find('.ui-icon');
+                if (uiIcon.length) {
+                    var prefix = 'ui-button-icon-';
+                    loadIcon.addClass(prefix + uiIcon.attr('class').includes(prefix + 'left') ? 'left' : 'right');
+                }
+                $this.button.prepend(loadIcon);
+            }
+        }).on('pfAjaxComplete.' + this.id, function(e, xhr, settings) {
+            if ($this.isXhrSource(settings)) {
+                $this.ajaxCount--;
+                if ($this.ajaxCount > 0) {
+                    return;
+                }
+                $this.button.removeClass('ui-state-loading');
+                if ($this.cfg.disableOnAjax !== false && !$this.cfg.disabledAttr) {
                     $this.enable();
                 }
-            });
-        }
+                $this.button.find('.ui-icon-loading').remove();
+            }
+        });
 
         //aria
         this.button.attr('role', 'button').attr('aria-disabled', this.cfg.disabled);
@@ -291,7 +311,7 @@ PrimeFaces.widget.MenuButton = PrimeFaces.widget.TieredMenu.extend({
      * @private
      */
     handleOverlayViewportChange: function() {
-        if (PrimeFaces.env.mobile) {
+        if (PrimeFaces.env.mobile || PrimeFaces.hideOverlaysOnViewportChange === false) {
             this.alignPanel();
         } else {
             this.hide();

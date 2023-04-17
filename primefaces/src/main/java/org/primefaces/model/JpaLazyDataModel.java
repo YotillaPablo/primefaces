@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,31 +23,29 @@
  */
 package org.primefaces.model;
 
-import org.primefaces.util.LangUtils;
-
-import javax.faces.context.FacesContext;
-import javax.persistence.EntityManager;
-import javax.persistence.TypedQuery;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Expression;
-import javax.persistence.criteria.Predicate;
-import javax.persistence.criteria.Root;
 import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import javax.el.ELException;
+
 import javax.faces.FacesException;
 import javax.faces.component.UIComponent;
+import javax.faces.context.FacesContext;
 import javax.faces.convert.Converter;
-import javax.persistence.criteria.Join;
-import javax.persistence.criteria.JoinType;
+import javax.faces.convert.ConverterException;
+import javax.persistence.EntityManager;
+import javax.persistence.TypedQuery;
+import javax.persistence.criteria.*;
+
 import org.primefaces.util.BeanUtils;
+import org.primefaces.util.LangUtils;
 import org.primefaces.util.Lazy;
 import org.primefaces.util.SerializableSupplier;
 
@@ -57,6 +55,8 @@ import org.primefaces.util.SerializableSupplier;
  * @param <T> The model class.
  */
 public class JpaLazyDataModel<T> extends LazyDataModel<T> implements Serializable {
+
+    private static final Logger LOG = Logger.getLogger(JpaLazyDataModel.class.getName());
 
     protected Class<T> entityClass;
     protected SerializableSupplier<EntityManager> entityManager;
@@ -157,12 +157,21 @@ public class JpaLazyDataModel<T> extends LazyDataModel<T> implements Serializabl
                     continue;
                 }
 
-                String filterValue = filter.getFilterValue().toString();
                 Field filterField = LangUtils.getFieldRecursive(entityClass, filter.getField());
-                Object convertedFilterValue = convertToType(filterValue, filterField.getType());
+                Object filterValue = filter.getFilterValue();
+                Object convertedFilterValue;
+
+                Class<?> filterValueClass = filterValue.getClass();
+                if (filterValueClass.isArray() || Collection.class.isAssignableFrom(filterValueClass)) {
+                    convertedFilterValue = filterValue;
+                }
+                else {
+                    convertedFilterValue = convertToType(filterValue, filterField.getType());
+                }
+
                 Expression fieldExpression = resolveFieldExpression(cb, cq, root, filter.getField());
 
-                Predicate predicate = createPredicate(filter, filterField, root, cb, fieldExpression, (Comparable) convertedFilterValue);
+                Predicate predicate = createPredicate(filter, filterField, root, cb, fieldExpression, convertedFilterValue);
                 predicates.add(predicate);
             }
         }
@@ -178,10 +187,13 @@ public class JpaLazyDataModel<T> extends LazyDataModel<T> implements Serializabl
 
     }
 
-    protected <F extends Comparable> Predicate createPredicate(FilterMeta filter, Field filterField,
-            Root<T> root, CriteriaBuilder cb, Expression fieldExpression, F filterValue) {
+    protected Predicate createPredicate(FilterMeta filter, Field filterField,
+            Root<T> root, CriteriaBuilder cb, Expression fieldExpression, Object filterValue) {
 
         Lazy<Expression<String>> fieldExpressionAsString = new Lazy(() -> fieldExpression.as(String.class));
+        Lazy<Collection<Object>> filterValueAsCollection = new Lazy(
+                () -> filterValue.getClass().isArray() ? Arrays.asList((Object[]) filterValue)
+                        : (Collection<Object>) filterValue);
 
         switch (filter.getMatchMode()) {
             case STARTS_WITH:
@@ -203,21 +215,29 @@ public class JpaLazyDataModel<T> extends LazyDataModel<T> implements Serializabl
             case NOT_EQUALS:
                 return cb.notEqual(fieldExpression, filterValue);
             case LESS_THAN:
-                return cb.lessThan(fieldExpression, filterValue);
+                return cb.lessThan(fieldExpression, (Comparable) filterValue);
             case LESS_THAN_EQUALS:
-                return cb.lessThanOrEqualTo(fieldExpression, filterValue);
+                return cb.lessThanOrEqualTo(fieldExpression, (Comparable) filterValue);
             case GREATER_THAN:
-                return cb.greaterThan(fieldExpression, filterValue);
+                return cb.greaterThan(fieldExpression, (Comparable) filterValue);
             case GREATER_THAN_EQUALS:
-                return cb.greaterThanOrEqualTo(fieldExpression, filterValue);
+                return cb.greaterThanOrEqualTo(fieldExpression, (Comparable) filterValue);
             case IN:
-                throw new UnsupportedOperationException("MatchMode.IN currently not supported!");
+                return filterValueAsCollection.get().size() == 1
+                        ? cb.equal(fieldExpression, filterValueAsCollection.get().iterator().next())
+                        : fieldExpression.in(filterValueAsCollection.get());
             case NOT_IN:
-                throw new UnsupportedOperationException("MatchMode.NOT_IN currently not supported!");
+                return filterValueAsCollection.get().size() == 1
+                        ? cb.notEqual(fieldExpression, filterValueAsCollection.get().iterator().next())
+                        : fieldExpression.in(filterValueAsCollection.get()).not();
             case BETWEEN:
-                throw new UnsupportedOperationException("MatchMode.BETWEEN currently not supported!");
+                Iterator<Object> iterBetween = filterValueAsCollection.get().iterator();
+                return cb.and(cb.greaterThanOrEqualTo(fieldExpression, (Comparable) iterBetween.next()),
+                    cb.lessThanOrEqualTo(fieldExpression, (Comparable) iterBetween.next()));
             case NOT_BETWEEN:
-                throw new UnsupportedOperationException("MatchMode.NOT_BETWEEN currently not supported!");
+                Iterator<Object> iterNotBetween = filterValueAsCollection.get().iterator();
+                return cb.and(cb.greaterThanOrEqualTo(fieldExpression, (Comparable) iterNotBetween.next()),
+                    cb.lessThanOrEqualTo(fieldExpression, (Comparable) iterNotBetween.next())).not();
             case GLOBAL:
                 throw new UnsupportedOperationException("MatchMode.GLOBAL currently not supported!");
         }
@@ -231,13 +251,22 @@ public class JpaLazyDataModel<T> extends LazyDataModel<T> implements Serializabl
                              Map<String, SortMeta> sortBy) {
 
         if (sortBy != null) {
-            for (SortMeta sort : sortBy.values()) {
+            List<Order> orders = null;
+            for (SortMeta sort : sortBy.values().stream().sorted().collect(Collectors.toList())) {
                 if (sort.getField() == null || sort.getOrder() == SortOrder.UNSORTED) {
                     continue;
                 }
 
+                if (orders == null) {
+                    orders = new ArrayList<>();
+                }
+
                 Expression<?> fieldExpression = resolveFieldExpression(cb, cq, root, sort.getField());
-                cq.orderBy(sort.getOrder() == SortOrder.ASCENDING ? cb.asc(fieldExpression) : cb.desc(fieldExpression));
+                orders.add(sort.getOrder() == SortOrder.ASCENDING ? cb.asc(fieldExpression) : cb.desc(fieldExpression));
+            }
+
+            if (orders != null) {
+                cq.orderBy(orders);
             }
         }
     }
@@ -309,23 +338,63 @@ public class JpaLazyDataModel<T> extends LazyDataModel<T> implements Serializabl
                         + ", when basic rowKey algorithm is not used [component=%s,view=%s]."));
     }
 
-    protected <V> V convertToType(String value, Class<V> valueType) {
+    protected Object convertToType(Object value, Class valueType) {
+        // skip null
+        if (value == null) {
+            return null;
+        }
+
+        // its already the same type
+        if (valueType.isAssignableFrom(value.getClass())) {
+            return value;
+        }
+
         FacesContext context = FacesContext.getCurrentInstance();
-        Converter<V> converter = context.getApplication().createConverter(valueType);
-        if (converter != null) {
-            return converter.getAsObject(context, UIComponent.getCurrentComponent(context), value);
-        }
 
-        if (valueType == String.class) {
-            return (V) value;
-        }
-
+        // primivites dont need complex conversion, try the ELContext first
         if (BeanUtils.isPrimitiveOrPrimitiveWrapper(valueType)) {
-            return (V) FacesContext.getCurrentInstance().getELContext().convertToType(value, valueType);
+            try {
+                return context.getELContext().convertToType(value, valueType);
+            }
+            catch (ELException elException) {
+                if (LOG.isLoggable(Level.INFO)) {
+                    LOG.log(Level.INFO, "Could not convert '" + value + "' to " + valueType + " via ELContext!", elException);
+                }
+            }
         }
 
-        throw new FacesException("Can not convert " + value + " to type " + valueType
-            + "; please create a JSF Converter for it or overwrite Object convertToType(String value, Class<?> valueType)!");
+        Converter targetConverter = context.getApplication().createConverter(valueType);
+        if (targetConverter == null) {
+            if (LOG.isLoggable(Level.FINE)) {
+                LOG.fine("Skip conversion as no converter was found for " + valueType
+                        + "; Create a JSF Converter for it or overwrite Object convertToType(String value, Class<?> valueType)!");
+            }
+            return value;
+        }
+
+        Converter sourceConverter = context.getApplication().createConverter(value.getClass());
+        if (sourceConverter == null) {
+            if (LOG.isLoggable(Level.FINE)) {
+                LOG.fine("Skip conversion as no converter was found for " + value.getClass()
+                        + "; Create a JSF Converter for it or overwrite Object convertToType(String value, Class<?> valueType)!");
+            }
+        }
+
+        // first convert the object to string
+        String stringValue = sourceConverter == null
+                ? value.toString()
+                : sourceConverter.getAsString(context, UIComponent.getCurrentComponent(context), value);
+
+        // now convert the string to the required target
+        try {
+            return targetConverter.getAsObject(context, UIComponent.getCurrentComponent(context), stringValue);
+        }
+        catch (ConverterException e) {
+            if (LOG.isLoggable(Level.INFO)) {
+                LOG.log(Level.INFO, "Could not convert '" + stringValue + "' to " + valueType + " via " + targetConverter.getClass().getName(), e);
+            }
+            return value;
+        }
     }
 
     protected Method getRowKeyGetter() {

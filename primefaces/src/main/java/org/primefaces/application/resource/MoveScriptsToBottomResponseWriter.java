@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,6 +36,7 @@ import javax.faces.context.FacesContext;
 import javax.faces.context.ResponseWriter;
 import javax.faces.context.ResponseWriterWrapper;
 
+import org.primefaces.renderkit.RendererUtils;
 import org.primefaces.util.AgentUtils;
 import org.primefaces.util.LangUtils;
 
@@ -44,7 +45,6 @@ public class MoveScriptsToBottomResponseWriter extends ResponseWriterWrapper {
     private static final String SCRIPT_TAG = "script";
     private static final String BODY_TAG = "body";
     private static final String HTML_TAG = "html";
-    private static final String SCRIPT_TYPE = "text/javascript";
     private static final String TYPE_ATTRIBUTE = "type";
 
     private final ResponseWriter wrapped;
@@ -170,7 +170,7 @@ public class MoveScriptsToBottomResponseWriter extends ResponseWriterWrapper {
     public void startElement(String name, UIComponent component) throws IOException {
         if (SCRIPT_TAG.equalsIgnoreCase(name)) {
             inScript = true;
-            scriptType = SCRIPT_TYPE;
+            scriptType = RendererUtils.SCRIPT_TYPE;
         }
         else {
             writeFouc();
@@ -201,12 +201,11 @@ public class MoveScriptsToBottomResponseWriter extends ResponseWriterWrapper {
 
             // write script includes
             for (Entry<String, List<Map<String, String>>> entry : state.getIncludes().entrySet()) {
-                String scriptType = entry.getKey();
-                List<Map<String, String>> includes = entry.getValue();
 
+                List<Map<String, String>> includes = entry.getValue();
                 for (int i = 0; i < includes.size(); i++) {
                     Map<String, String> attributes = includes.get(i);
-                    attributes.put(TYPE_ATTRIBUTE, scriptType);
+                    attributes.put(TYPE_ATTRIBUTE, entry.getKey());
                     getWrapped().startElement(SCRIPT_TAG, null);
                     for (Entry<String, String> attribute : attributes.entrySet()) {
                         String attributeName = attribute.getKey();
@@ -267,7 +266,7 @@ public class MoveScriptsToBottomResponseWriter extends ResponseWriterWrapper {
         String minimized = script.toString();
 
         if (LangUtils.isNotBlank(minimized)) {
-            if (SCRIPT_TYPE.equalsIgnoreCase(type)) {
+            if (RendererUtils.SCRIPT_TYPE.equalsIgnoreCase(type)) {
                 minimized = minimized.replace(";;", ";");
 
                 if (minimized.contains("PrimeFaces")) {

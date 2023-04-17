@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -128,14 +128,12 @@ public class SelectOneMenuRenderer extends SelectOneRenderer {
         writer.startElement("div", menu);
         writer.writeAttribute("id", clientId, "id");
         writer.writeAttribute("class", styleClass, "styleclass");
-        writer.writeAttribute(HTML.ARIA_OWNS, clientId + "_panel", null);
         if (style != null) {
             writer.writeAttribute("style", style, "style");
         }
         if (title != null) {
             writer.writeAttribute("title", title, "title");
         }
-        renderARIACombobox(context, menu);
 
         encodeInput(context, menu, clientId, selectItems, values, submittedValues, converter);
         encodeLabel(context, menu, selectItems);
@@ -149,26 +147,30 @@ public class SelectOneMenuRenderer extends SelectOneRenderer {
                                Object submittedValues, Converter converter) throws IOException {
 
         ResponseWriter writer = context.getResponseWriter();
-        String focusId = clientId + "_focus";
 
-        //input for accessibility
-        writer.startElement("div", null);
-        writer.writeAttribute("class", "ui-helper-hidden-accessible", null);
+        if (menu.isEditable()) {
+            String focusId = clientId + "_focus";
 
-        writer.startElement("input", null);
-        writer.writeAttribute("id", focusId, null);
-        writer.writeAttribute("name", focusId, null);
-        writer.writeAttribute("type", "text", null);
-        writer.writeAttribute("autocomplete", "off", null);
+            //input for accessibility
+            writer.startElement("div", null);
+            writer.writeAttribute("class", "ui-helper-hidden-accessible", null);
 
-        //for keyboard accessibility and ScreenReader
-        renderAccessibilityAttributes(context, menu);
-        renderPassThruAttributes(context, menu, HTML.TAB_INDEX);
-        renderDomEvents(context, menu, HTML.BLUR_FOCUS_EVENTS);
+            writer.startElement("input", null);
+            writer.writeAttribute("id", focusId, null);
+            writer.writeAttribute("name", focusId, null);
+            writer.writeAttribute("type", "text", null);
+            writer.writeAttribute("autocomplete", "off", null);
+            writer.writeAttribute(HTML.ARIA_ROLE, HTML.ARIA_ROLE_COMBOBOX, null);
 
-        writer.endElement("input");
+            //for keyboard accessibility and ScreenReader
+            renderAccessibilityAttributes(context, menu);
+            renderPassThruAttributes(context, menu, HTML.TAB_INDEX);
+            renderDomEvents(context, menu, HTML.BLUR_FOCUS_EVENTS);
 
-        writer.endElement("div");
+            writer.endElement("input");
+
+            writer.endElement("div");
+        }
 
         //hidden select
         writer.startElement("div", null);
@@ -229,6 +231,7 @@ public class SelectOneMenuRenderer extends SelectOneRenderer {
 
         if (menu.isEditable()) {
             writer.startElement("input", null);
+            writer.writeAttribute("id", menu.getClientId(context) + "_editableInput", null);
             writer.writeAttribute("type", "text", null);
             writer.writeAttribute("name", menu.getClientId(context) + "_editableInput", null);
             writer.writeAttribute("class", SelectOneMenu.LABEL_CLASS, null);
@@ -241,6 +244,7 @@ public class SelectOneMenuRenderer extends SelectOneRenderer {
             if (menu.isDisabled()) {
                 writer.writeAttribute("disabled", "disabled", null);
             }
+            renderAccessibilityAttributes(context, menu);
 
             String valueToRender = ComponentUtils.getValueToRender(context, menu);
             for (int i = 0; i < selectItems.size(); i++) {
@@ -272,18 +276,31 @@ public class SelectOneMenuRenderer extends SelectOneRenderer {
             writer.endElement("input");
         }
         else {
-            writer.startElement("label", null);
+            String clientId = menu.getClientId(context);
+
+            writer.startElement("span", null);
             writer.writeAttribute("id", menu.getClientId(context) + "_label", null);
             writer.writeAttribute("class", SelectOneMenu.LABEL_CLASS, null);
+            writer.writeAttribute("tabindex", 0, null);
             if (menu.getPlaceholder() != null) {
                 writer.writeAttribute("data-placeholder", menu.getPlaceholder(), null);
             }
+
+            //for keyboard accessibility and ScreenReader
+            writer.writeAttribute(HTML.ARIA_CONTROLS, clientId + "_panel", null);
+
+            renderARIACombobox(context, menu);
+
+            renderAccessibilityAttributes(context, menu);
+            renderPassThruAttributes(context, menu, HTML.TAB_INDEX);
+            renderDomEvents(context, menu, HTML.BLUR_FOCUS_EVENTS);
+
             String label = menu.getLabel();
             if (label != null) {
                 writer.writeText(label, null);
             }
             writer.write("&nbsp;");
-            writer.endElement("label");
+            writer.endElement("span");
         }
     }
 
@@ -322,6 +339,7 @@ public class SelectOneMenuRenderer extends SelectOneRenderer {
         writer.startElement("div", null);
         writer.writeAttribute("id", menu.getClientId(context) + "_panel", null);
         writer.writeAttribute("class", panelStyleClass, null);
+        writer.writeAttribute("tabindex", "-1", null);
         if (panelStyle != null) {
             writer.writeAttribute("style", panelStyle, null);
         }
@@ -440,12 +458,15 @@ public class SelectOneMenuRenderer extends SelectOneRenderer {
 
             String itemStyleClass = SelectOneMenu.ROW_CLASS;
             if (selectItem.isNoSelectionOption()) {
-                itemStyleClass = itemStyleClass + " ui-noselection-option";
+                itemStyleClass += " ui-noselection-option";
+            }
+            if (selectItem.isDisabled()) {
+                itemStyleClass += " ui-state-disabled";
             }
 
             context.getExternalContext().getRequestMap().put(var, itemValue);
 
-            writer.startElement("tr", null);
+            writer.startElement("tr", getSelectItemComponent(selectItem));
             writer.writeAttribute("class", itemStyleClass, null);
             writer.writeAttribute("data-label", itemLabel, null);
             writer.writeAttribute("role", "option", null);
@@ -497,7 +518,7 @@ public class SelectOneMenuRenderer extends SelectOneRenderer {
                 .attr("alwaysDisplayLabel", menu.isAlwaysDisplayLabel(), false)
                 .attr("label", menu.getLabel(), null)
                 .attr("labelTemplate", menu.getLabelTemplate(), null)
-                .attr("autoWidth", menu.isAutoWidth(), true)
+                .attr("autoWidth", menu.getAutoWidth(), "auto")
                 .attr("dynamic", menu.isDynamic(), false)
                 .attr("touchable", ComponentUtils.isTouchable(context, menu),  true)
                 .attr("renderPanelContentOnClient", menu.getVar() == null,  false);
@@ -506,7 +527,8 @@ public class SelectOneMenuRenderer extends SelectOneRenderer {
             wb.attr("filter", true)
                     .attr("filterMatchMode", menu.getFilterMatchMode(), null)
                     .nativeAttr("filterFunction", menu.getFilterFunction(), null)
-                    .attr("caseSensitive", menu.isCaseSensitive(), false);
+                    .attr("caseSensitive", menu.isCaseSensitive(), false)
+                    .attr("filterNormalize", menu.isFilterNormalize(), false);
         }
 
         encodeClientBehaviors(context, menu);
@@ -577,7 +599,7 @@ public class SelectOneMenuRenderer extends SelectOneRenderer {
             boolean selected = isSelected(context, menu, itemValue, valuesArray, converter);
 
             if (!menu.isDynamic() || (menu.isDynamic() && (selected || menu.isDynamicLoadRequest(context) || itemIndex == 0))) {
-                writer.startElement("option", null);
+                writer.startElement("option", getSelectItemComponent(option));
                 writer.writeAttribute("value", itemValueAsString, null);
                 if (disabled) {
                     writer.writeAttribute("disabled", "disabled", null);
@@ -636,7 +658,6 @@ public class SelectOneMenuRenderer extends SelectOneRenderer {
         writer.writeAttribute("name", id, null);
         writer.writeAttribute("type", "text", null);
         writer.writeAttribute("autocomplete", "off", null);
-        writer.writeAttribute(HTML.ARIA_AUTOCOMPLETE, "list", null);
         writer.writeAttribute(HTML.ARIA_CONTROLS, menu.getClientId(context) + "_table", null);
         writer.writeAttribute(HTML.ARIA_LABEL, MessageFactory.getMessage(InputRenderer.ARIA_FILTER), null);
 

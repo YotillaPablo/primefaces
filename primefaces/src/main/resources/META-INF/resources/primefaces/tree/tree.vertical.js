@@ -75,7 +75,6 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
     bindEvents: function() {
         var $this = this,
         togglerSelector = '.ui-tree-toggler',
-        nodeLabelSelector = '.ui-tree-selectable .ui-treenode-label',
         nodeContentSelector = '.ui-treenode-content';
 
         this.jq.off('click.tree-toggle', togglerSelector)
@@ -90,11 +89,11 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
                     });
 
         if(this.cfg.highlight && this.cfg.selectionMode) {
-            this.jq.off('mouseenter.tree mouseleave.tree', nodeLabelSelector)
-                        .on('mouseleave.tree', nodeLabelSelector, null, function() {
+            this.jq.off('mouseenter.tree mouseleave.tree', nodeContentSelector)
+                        .on('mouseleave.tree', nodeContentSelector, null, function() {
                             $(this).removeClass('ui-state-hover');
                         })
-                        .on('mouseenter.tree', nodeLabelSelector, null, function() {
+                        .on('mouseenter.tree', nodeContentSelector, null, function() {
                             $(this).addClass('ui-state-hover');
                         });
         }
@@ -163,16 +162,15 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
             }
         });
 
-        this.jq.off('keydown.tree blur.tree', '.ui-treenode-label').on('keydown.tree', '.ui-treenode-label', null, function(e) {
+        this.jq.off('keydown.tree blur.tree', '.ui-treenode-content').on('keydown.tree', '.ui-treenode-content', null, function(e) {
             if(!$this.focusedNode) {
                 return;
             }
 
-            var searchRowkey = "",
-            keyCode = $.ui.keyCode;
+            var searchRowkey = "";
 
-            switch(e.which) {
-                case keyCode.LEFT:
+            switch(e.key) {
+                case 'ArrowLeft':
                     var rowkey = $this.focusedNode.data('rowkey').toString(),
                     keyLength = rowkey.length;
 
@@ -194,7 +192,7 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
                     e.preventDefault();
                 break;
 
-                case keyCode.RIGHT:
+                case 'ArrowRight':
                     if(!$this.focusedNode.hasClass('ui-treenode-leaf')) {
                         var rowkey = $this.focusedNode.data('rowkey').toString(),
                         keyLength = rowkey.length;
@@ -216,7 +214,7 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
                     e.preventDefault();
                 break;
 
-                case keyCode.UP:
+                case 'ArrowUp':
                     var nodeToFocus = null,
                     prevNode = $this.previousNode($this.focusedNode);
 
@@ -237,7 +235,7 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
                     e.preventDefault();
                 break;
 
-                case keyCode.DOWN:
+                case 'ArrowDown':
                     var nodeToFocus = null,
                     firstVisibleChildNode = $this.focusedNode.find("> ul > li:visible:not(.ui-tree-droppoint)").first();
 
@@ -262,8 +260,8 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
                     e.preventDefault();
                 break;
 
-                case keyCode.ENTER:
-                case keyCode.SPACE:
+                case 'Enter':
+                case ' ':
                     if($this.cfg.selectionMode) {
                         var selectable = $this.focusedNode.children('.ui-treenode-content').hasClass('ui-tree-selectable');
 
@@ -299,7 +297,7 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
                     e.preventDefault();
                 break;
 
-                case keyCode.TAB:
+                case 'Tab':
                     pressTab = true;
                     $this.container.trigger('focus');
                     setTimeout(function() {
@@ -309,9 +307,9 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
                 break;
             }
         })
-        .on('blur.tree', '.ui-treenode-label', null, function(e) {
+        .on('blur.tree', '.ui-treenode-content', null, function(e) {
             if($this.focusedNode) {
-                $this.getNodeLabel($this.focusedNode).removeClass('ui-treenode-outline');
+                $this.getNodeContent($this.focusedNode).removeClass('ui-treenode-outline');
                 $this.focusedNode = null;
             }
         });
@@ -395,7 +393,7 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
         childrenContainer = node.children('.ui-treenode-children');
 
         //aria
-        nodeContent.find('> .ui-treenode-label').attr('aria-expanded', false);
+        nodeContent.find('> .ui-treenode-content').attr('aria-expanded', false);
 
         toggleIcon.removeClass('ui-icon-triangle-1-s').addClass(_self.cfg.collapsedIcon);
 
@@ -455,7 +453,7 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
         iconState = this.cfg.iconStates[nodeType];
 
         //aria
-        nodeContent.find('> .ui-treenode-label').attr('aria-expanded', true);
+        nodeContent.find('> .ui-treenode-content').attr('aria-expanded', true);
 
         toggleIcon.removeClass(this.cfg.collapsedIcon).addClass('ui-icon-triangle-1-s');
 
@@ -477,8 +475,8 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
      */
     unselectAllNodes: function() {
         this.selections = [];
-        this.jq.find('.ui-treenode-label.ui-state-highlight').each(function() {
-            $(this).removeClass('ui-state-highlight').closest('.ui-treenode').attr('aria-selected', false);
+        this.jq.find('.ui-treenode-content.ui-state-highlight').each(function() {
+            $(this).removeClass('ui-state-highlight').closest('.ui-treenode').attr('aria-selected', false).removeClass('ui-treenode-selected').addClass('ui-treenode-unselected');
         });
     },
 
@@ -489,8 +487,8 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
      * @param {boolean} [silent]
      */
     selectNode: function(node, silent) {
-        node.attr('aria-selected', true)
-            .find('> .ui-treenode-content > .ui-treenode-label').addClass('ui-state-highlight');
+        node.attr('aria-selected', true).removeClass('ui-treenode-unselected').addClass('ui-treenode-selected')
+            .find('> .ui-treenode-content').addClass('ui-state-highlight');
 
         this.addToSelection(this.getRowKey(node));
         this.writeSelections();
@@ -508,8 +506,8 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
     unselectNode: function(node, silent) {
         var rowKey = this.getRowKey(node);
 
-        node.attr('aria-selected', false).
-            find('> .ui-treenode-content > .ui-treenode-label').removeClass('ui-state-highlight');
+        node.attr('aria-selected', false).removeClass('ui-treenode-selected').addClass('ui-treenode-unselected')
+            .find('> .ui-treenode-content').removeClass('ui-state-highlight');
 
         this.removeFromSelection(rowKey);
         this.writeSelections();
@@ -608,7 +606,7 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
      */
     check: function(checkbox) {
         this._super(checkbox);
-        checkbox.siblings('span.ui-treenode-label').addClass('ui-state-highlight');
+        checkbox.parent().addClass('ui-state-highlight');
     },
 
     /**
@@ -619,7 +617,7 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
      */
     uncheck: function(checkbox) {
         this._super(checkbox);
-        checkbox.siblings('span.ui-treenode-label').removeClass('ui-state-highlight');
+        checkbox.parent().removeClass('ui-state-highlight');
     },
 
     /**
@@ -656,7 +654,7 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
                     source = PF($(element.data('dragsourceid')).data('widget')),
                     height = 20;
 
-                    if(source.cfg.multipleDrag && element.find('.ui-treenode-label').hasClass('ui-state-highlight')) {
+                    if(source.cfg.multipleDrag && element.find('.ui-treenode-content').hasClass('ui-state-highlight')) {
                         source.draggedSourceKeys = $this.findSelectedParentKeys(source.selections.slice());
                         height = 20 * (source.draggedSourceKeys.length || 1);
                     }
@@ -849,10 +847,10 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
             tolerance: 'pointer',
             scope: dragdropScope,
             over: function(event, ui) {
-                $(this).children('.ui-treenode-label').addClass('ui-state-hover');
+                $(this).children('.ui-treenode-content').addClass('ui-state-hover');
             },
             out: function(event, ui) {
-                $(this).children('.ui-treenode-label').removeClass('ui-state-hover');
+                $(this).children('.ui-treenode-content').removeClass('ui-state-hover');
             },
             drop: function(event, ui) {
                 var dragSource = PF($(ui.draggable.data('dragsourceid')).data('widget')),
@@ -959,7 +957,7 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
         childrenContainer = dropNode.children('.ui-treenode-children');
 
         ui.helper.remove();
-        droppable.children('.ui-treenode-label').removeClass('ui-state-hover');
+        droppable.children('.ui-treenode-content').removeClass('ui-state-hover');
 
         var validDrop = this.validateDropNode(dragNode, dropNode, oldParentNode);
         if(!validDrop) {
@@ -1304,8 +1302,8 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
             });
         }
         else {
-            node.find('.ui-treenode-label.ui-state-highlight').each(function() {
-                $(this).removeClass('ui-state-highlight').closest('li.ui-treenode').attr('aria-selected', false);
+            node.find('.ui-treenode-content.ui-state-highlight').each(function() {
+                $(this).removeClass('ui-state-highlight').closest('li.ui-treenode').attr('aria-selected', false).removeClass('ui-treenode-selected').addClass('ui-treenode-unselected');
             });
         }
     },
@@ -1395,12 +1393,12 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
     },
 
     /**
-     * Finds the label element for the given node.
-     * @param {JQuery} node Node for which to find the corresponding label.
-     * @return {JQuery} The element with the label for the given node.
+     * Finds the content element for the given node.
+     * @param {JQuery} node Node for which to find the corresponding content.
+     * @return {JQuery} The element with the content for the given node.
      */
-    getNodeLabel: function(node) {
-        return node.find('> .ui-treenode-content > span.ui-treenode-label');
+    getNodeContent: function(node) {
+        return node.find('> .ui-treenode-content');
     },
 
     /**
@@ -1411,10 +1409,10 @@ PrimeFaces.widget.VerticalTree = PrimeFaces.widget.BaseTree.extend({
      */
     focusNode: function(node) {
         if(this.focusedNode) {
-            this.getNodeLabel(this.focusedNode).removeClass('ui-treenode-outline');
+            this.getNodeContent(this.focusedNode).removeClass('ui-treenode-outline');
         }
 
-        this.getNodeLabel(node).addClass('ui-treenode-outline').trigger('focus');
+        this.getNodeContent(node).addClass('ui-treenode-outline').trigger('focus');
         this.focusedNode = node;
     },
 

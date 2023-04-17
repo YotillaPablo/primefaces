@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,31 +23,20 @@
  */
 package org.primefaces.component.datatable.feature;
 
-import org.primefaces.component.datatable.DataTable;
-import org.primefaces.component.datatable.DataTableBase;
-import org.primefaces.component.datatable.DataTableRenderer;
-import org.primefaces.component.datatable.DataTableState;
-import org.primefaces.util.LangUtils;
-
+import java.lang.reflect.Array;
+import java.util.*;
 import javax.el.ValueExpression;
 import javax.faces.FacesException;
 import javax.faces.context.FacesContext;
-import java.io.IOException;
-import java.lang.reflect.Array;
-import java.util.*;
+
+import org.primefaces.component.datatable.DataTable;
+import org.primefaces.component.datatable.DataTableBase;
+import org.primefaces.component.datatable.DataTableState;
+import org.primefaces.util.LangUtils;
 
 public class SelectionFeature implements DataTableFeature {
 
     private static final String ALL_SELECTOR = "@all";
-
-    private static final SelectionFeature INSTANCE = new SelectionFeature();
-
-    private SelectionFeature() {
-    }
-
-    public static SelectionFeature getInstance() {
-        return INSTANCE;
-    }
 
     @Override
     public void decode(FacesContext context, DataTable table) {
@@ -61,6 +50,10 @@ public class SelectionFeature implements DataTableFeature {
 
         if (LangUtils.isNotBlank(selection)) {
             rowKeys = LangUtils.newLinkedHashSet(selection.split(","));
+            table.setSelectAll(ALL_SELECTOR.equals(selection));
+        }
+        else {
+            table.setSelectAll(false);
         }
 
         if (isFiltered) {
@@ -93,9 +86,9 @@ public class SelectionFeature implements DataTableFeature {
 
     public void decodeSelectionRowKeys(FacesContext context, DataTable table) {
         Set<String> rowKeys = null;
-        ValueExpression selectionByVE = table.getValueExpression(DataTableBase.PropertyKeys.selection.name());
-        if (selectionByVE != null) {
-            Object selection = selectionByVE.getValue(context.getELContext());
+        ValueExpression selectionVE = table.getValueExpression(DataTableBase.PropertyKeys.selection.name());
+        if (selectionVE != null) {
+            Object selection = selectionVE.getValue(context.getELContext());
 
             if (selection != null) {
                 rowKeys = new HashSet<>();
@@ -129,7 +122,7 @@ public class SelectionFeature implements DataTableFeature {
         }
 
         if (rowKeys.isEmpty()) {
-            setSelection(context, table, false, Collections.emptyList(), Collections.emptySet());
+            setSelection(context, table, false, new ArrayList<>(), new HashSet<>());
         }
         else {
             String rowKey = rowKeys.iterator().next();
@@ -150,14 +143,14 @@ public class SelectionFeature implements DataTableFeature {
                 setSelection(context, table, false, selectionTmp, rowKeysTmp);
             }
             else {
-                setSelection(context, table, false, Collections.emptyList(), Collections.emptySet());
+                setSelection(context, table, false, new ArrayList<>(), new HashSet<>());
             }
         }
     }
 
     protected void decodeMultipleSelection(FacesContext context, DataTable table, Set<String> rowKeys) {
         if (rowKeys.isEmpty()) {
-            setSelection(context, table, true, Collections.emptyList(), Collections.emptySet());
+            setSelection(context, table, true, new ArrayList<>(), new HashSet<>());
         }
         else {
             Map<String, Object> requestMap = context.getExternalContext().getRequestMap();
@@ -196,11 +189,6 @@ public class SelectionFeature implements DataTableFeature {
     }
 
     @Override
-    public void encode(FacesContext context, DataTableRenderer renderer, DataTable table) throws IOException {
-        throw new FacesException("SelectFeature should not encode.");
-    }
-
-    @Override
     public boolean shouldDecode(FacesContext context, DataTable table) {
         return table.isSelectionEnabled();
     }
@@ -216,7 +204,7 @@ public class SelectionFeature implements DataTableFeature {
             requestMap.put(var, o);
         }
 
-        boolean selectable = !table.isDisabledSelection();
+        boolean selectable = table.isSelectionEnabled() && !table.isDisabledSelection();
 
         if (!containsVar) {
             requestMap.remove(var);
@@ -239,7 +227,7 @@ public class SelectionFeature implements DataTableFeature {
             if (multiple) {
                 selection = isArray
                         ? Array.newInstance(clazz.getComponentType(), 0)
-                        : Collections.emptyList();
+                        : new ArrayList<>();
             }
             else {
                 selection = null;

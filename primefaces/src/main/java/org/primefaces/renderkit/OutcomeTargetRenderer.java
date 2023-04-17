@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,6 @@
 package org.primefaces.renderkit;
 
 import java.util.*;
-
 import javax.faces.FacesException;
 import javax.faces.application.ConfigurableNavigationHandler;
 import javax.faces.application.NavigationCase;
@@ -33,6 +32,7 @@ import javax.faces.context.FacesContext;
 import javax.faces.event.ActionListener;
 import javax.faces.flow.FlowHandler;
 import javax.faces.lifecycle.ClientWindow;
+import javax.servlet.http.HttpServletRequest;
 
 import org.primefaces.component.api.UIOutcomeTarget;
 import org.primefaces.context.PrimeApplicationContext;
@@ -48,13 +48,12 @@ public class OutcomeTargetRenderer extends CoreRenderer {
             outcome = context.getViewRoot().getViewId();
         }
 
-        if (PrimeApplicationContext.getCurrentInstance(context).getEnvironment().isAtLeastJsf22()) {
-            if (outcomeTarget instanceof UIComponent) {
-                String toFlowDocumentId = (String) ((UIComponent) outcomeTarget).getAttributes().get(ActionListener.TO_FLOW_DOCUMENT_ID_ATTR_NAME);
+        if (outcomeTarget instanceof UIComponent
+                && PrimeApplicationContext.getCurrentInstance(context).getEnvironment().isAtLeastJsf22()) {
+            String toFlowDocumentId = (String) ((UIComponent) outcomeTarget).getAttributes().get(ActionListener.TO_FLOW_DOCUMENT_ID_ATTR_NAME);
 
-                if (toFlowDocumentId != null) {
-                    return navigationHandler.getNavigationCase(context, null, outcome, toFlowDocumentId);
-                }
+            if (toFlowDocumentId != null) {
+                return navigationHandler.getNavigationCase(context, null, outcome, toFlowDocumentId);
             }
         }
 
@@ -198,11 +197,24 @@ public class OutcomeTargetRenderer extends CoreRenderer {
             }
         }
         finally {
-            if (clientWindowRenderingModeEnabled && clientWindow != null) {
+            if (clientWindowRenderingModeEnabled) {
                 ((ClientWindow) clientWindow).enableClientWindowRenderMode(context);
             }
         }
 
         return url;
+    }
+
+    protected String getTargetRequestURL(FacesContext context, UIOutcomeTarget outcomeTarget) {
+        HttpServletRequest req = (HttpServletRequest) context.getExternalContext().getRequest();
+        String href = outcomeTarget.getHref();
+        String requestURL = req.getRequestURL().toString();
+
+        if (href != null) {
+            return "#".equals(href) ? requestURL + "#" : href;
+        }
+        else {
+            return LangUtils.substring(requestURL, 0, requestURL.length() - req.getRequestURI().length()) + getTargetURL(context, outcomeTarget);
+        }
     }
 }

@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -135,7 +135,11 @@ public abstract class SelectOneMenu extends AbstractInputComponent {
     }
 
     public String getSelectedLabel() {
-        return getLabel().getText();
+        WebElement label = getLabel();
+        if (PrimeSelenium.isElementDisplayed(label)) {
+            return label.getText();
+        }
+        return label.getAttribute("textContent");
     }
 
     public boolean isSelected(String label) {
@@ -200,6 +204,11 @@ public abstract class SelectOneMenu extends AbstractInputComponent {
     }
 
     @Override
+    public WebElement getAssignedLabel() {
+        return getWebDriver().findElement(By.cssSelector("label[for='" + getId() + (isEditable() ? "_focus" : "_label") + "']"));
+    }
+
+    @Override
     public WebElement getInput() {
         return input;
     }
@@ -231,5 +240,9 @@ public abstract class SelectOneMenu extends AbstractInputComponent {
 
     public WebElement getFilterInput() {
         return filterInput;
+    }
+
+    public boolean isEditable() {
+        return getWidgetConfiguration().optBoolean("editable");
     }
 }

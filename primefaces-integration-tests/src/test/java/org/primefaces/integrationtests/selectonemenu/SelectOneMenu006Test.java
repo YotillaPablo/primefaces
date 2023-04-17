@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -79,6 +79,18 @@ public class SelectOneMenu006Test extends AbstractPrimePageTest {
         // Assert
         assertMessage(page, 0, "Console", "Sega Genesis");
         assertConfiguration(selectOneMenu.getWidgetConfiguration());
+    }
+
+    @Test
+    @Order(3)
+    @DisplayName("SelectOneMenu: getAssignedLabelText editable=true")
+    public void testAssignedLabelText(SelectOneMenu001Test.Page page) {
+        // Arrange
+        SelectOneMenu selectOneMenu = page.selectOneMenu;
+
+        // Test
+        Assertions.assertNotNull(selectOneMenu.getAssignedLabel());
+        Assertions.assertEquals("SelectOneMenu", selectOneMenu.getAssignedLabelText());
     }
 
     private void assertMessage(Page page, int index, String summary, String detail) {

@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -223,7 +223,7 @@ public class ImageCropperRenderer extends CoreRenderer {
 
                         String webRoot = externalContext.getRealPath(Constants.EMPTY_STRING);
                         String fileSeparator = Constants.EMPTY_STRING;
-                        if (!(webRoot.endsWith("\\") || webRoot.endsWith("/")) &&
+                        if (LangUtils.isBlank(webRoot) || !(webRoot.endsWith("\\") || webRoot.endsWith("/")) &&
                                     !(imagePath.startsWith("\\") || imagePath.startsWith("/"))) {
                             fileSeparator = "/";
                         }

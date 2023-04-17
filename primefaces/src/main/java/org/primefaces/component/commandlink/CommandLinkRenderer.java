@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,6 @@ package org.primefaces.component.commandlink;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
 import javax.faces.FacesException;
 import javax.faces.component.UIComponent;
 import javax.faces.component.UIForm;
@@ -100,14 +99,13 @@ public class CommandLinkRenderer extends CoreRenderer {
         writer.writeAttribute(HTML.ARIA_LABEL, link.getAriaLabel(), null);
         if (link.isDisabled()) {
             writer.writeAttribute("tabindex", "-1", null);
-            writer.writeAttribute("aria-disabled", "true", null);
         }
 
         if (ajax) {
             request = buildAjaxRequest(context, link);
         }
         else {
-            UIForm form = ComponentTraversalUtils.closestForm(context, link);
+            UIForm form = ComponentTraversalUtils.closestForm(link);
             if (form == null) {
                 throw new FacesException("Commandlink \"" + clientId + "\" must be inside a form component");
             }
@@ -155,7 +153,8 @@ public class CommandLinkRenderer extends CoreRenderer {
     protected void encodeScript(FacesContext context, CommandLink link) throws IOException {
         WidgetBuilder wb = getWidgetBuilder(context);
         wb.init("CommandLink", link)
-                .attr("disableOnAjax", link.isDisableOnAjax(), false);
+                .attr("disableOnAjax", link.isDisableOnAjax(), true)
+                .attr("disabledAttr", link.isDisabled(), false);
 
         encodeClientBehaviors(context, link);
 

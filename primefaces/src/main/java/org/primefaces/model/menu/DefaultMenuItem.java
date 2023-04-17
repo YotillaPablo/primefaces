@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2021 PrimeTek
+ * Copyright (c) 2009-2023 PrimeTek Informatics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,13 +23,14 @@
  */
 package org.primefaces.model.menu;
 
+import java.io.Serializable;
+import java.util.*;
+
+import javax.faces.component.UIComponent;
+
 import org.primefaces.component.api.AjaxSource;
 import org.primefaces.component.api.UIOutcomeTarget;
 import org.primefaces.util.SerializableFunction;
-
-import javax.faces.component.UIComponent;
-import java.io.Serializable;
-import java.util.*;
 
 public class DefaultMenuItem implements MenuItem, UIOutcomeTarget, AjaxSource, Serializable {
 
@@ -79,6 +80,8 @@ public class DefaultMenuItem implements MenuItem, UIOutcomeTarget, AjaxSource, S
     private boolean escape = true;
     private String rel;
     private boolean ignoreComponentNotFound;
+    private String ariaLabel;
+    private Object badge;
 
     /**
      * Creates a new menu item without value.
@@ -525,12 +528,30 @@ public class DefaultMenuItem implements MenuItem, UIOutcomeTarget, AjaxSource, S
     }
 
     @Override
+    public String getAriaLabel() {
+        return ariaLabel;
+    }
+
+    public void setAriaLabel(String ariaLabel) {
+        this.ariaLabel = ariaLabel;
+    }
+
+    @Override
     public boolean isIgnoreComponentNotFound() {
         return ignoreComponentNotFound;
     }
 
     public void setIgnoreComponentNotFound(boolean ignoreComponentNotFound) {
         this.ignoreComponentNotFound = ignoreComponentNotFound;
+    }
+
+    @Override
+    public Object getBadge() {
+        return badge;
+    }
+
+    public void setBadge(Object badge) {
+        this.badge = badge;
     }
 
     public static Builder builder() {
@@ -752,6 +773,16 @@ public class DefaultMenuItem implements MenuItem, UIOutcomeTarget, AjaxSource, S
 
         public Builder ignoreComponentNotFound(boolean ignoreComponentNotFound) {
             menuItem.setIgnoreComponentNotFound(ignoreComponentNotFound);
+            return this;
+        }
+
+        public Builder ariaLabel(String ariaLabel) {
+            menuItem.setAriaLabel(ariaLabel);
+            return this;
+        }
+
+        public Builder badge(Object badge) {
+            menuItem.setBadge(badge);
             return this;
         }
 
